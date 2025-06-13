@@ -24,7 +24,7 @@ UPLOAD_DIR = "uploads"
 TRANSCRIPTS_DIR = "transcripts"
 DB_PATH = "transcripts.db"
 
-# Ensure folders exist before mounting
+# Ensure required directories exist before mounting
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(TRANSCRIPTS_DIR, exist_ok=True)
 os.makedirs("static", exist_ok=True)
@@ -178,3 +178,4 @@ async def get_static_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path)
     return JSONResponse(status_code=404, content={"error": "File not found"})
+
