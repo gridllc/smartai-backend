@@ -24,11 +24,13 @@ UPLOAD_DIR = "uploads"
 TRANSCRIPTS_DIR = "transcripts"
 DB_PATH = "transcripts.db"
 
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
+# Ensure folders exist before mounting
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(TRANSCRIPTS_DIR, exist_ok=True)
+os.makedirs("static", exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
