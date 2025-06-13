@@ -1,0 +1,9 @@
+.env
+*.mp4
+*.mkv
+*.avi
+__pycache__/
+*.pyc
+uploads/
+transcripts/
+api.txt
