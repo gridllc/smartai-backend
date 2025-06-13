@@ -1,5 +1,3 @@
-# main.py
-
 from fastapi import FastAPI, UploadFile, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
@@ -12,6 +10,21 @@ from upload_processor import transcribe_audio, get_openai_client
 
 app = FastAPI()
 
+# Paths
+UPLOAD_DIR = "uploads"
+TRANSCRIPTS_DIR = "transcripts"
+DB_PATH = "transcripts.db"
+
+# Ensure necessary folders exist BEFORE mounting
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(TRANSCRIPTS_DIR, exist_ok=True)
+os.makedirs("static", exist_ok=True)
+
+# Mount folders after confirming existence
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# CORS setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,18 +33,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = "uploads"
-TRANSCRIPTS_DIR = "transcripts"
-DB_PATH = "transcripts.db"
-
-# Ensure required directories exist before mounting
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(TRANSCRIPTS_DIR, exist_ok=True)
-os.makedirs("static", exist_ok=True)
-
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
+# Database init
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -178,4 +180,3 @@ async def get_static_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path)
     return JSONResponse(status_code=404, content={"error": "File not found"})
-
