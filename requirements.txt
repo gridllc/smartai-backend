@@ -1,3 +1,4 @@
+aiofiles
 aiohappyeyeballs==2.6.1
 aiohttp==3.12.12
 aiohttp-retry==2.9.1
@@ -36,8 +37,10 @@ openai==1.86.0
 openai-whisper @ git+https://github.com/openai/whisper.git@dd985ac4b90cafeef8712f2998d62c59c3e62d22
 packaging==24.2
 pinecone==7.0.2
+pinecone-client
 pinecone-plugin-assistant==1.7.0
 pinecone-plugin-interface==0.0.7
+PyJWT
 propcache==0.3.2
 protobuf==5.29.5
 protoc-gen-openapiv2==0.0.1
