@@ -3,228 +3,185 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SmartAI Audio Transcriber</title>
+  <title>SmartAI</title>
   <link rel="stylesheet" href="/static/style.css" />
-  <style>
-    body.dark {
-      background-color: #111;
-      color: #eee;
-    }
-    .dark input, .dark button {
-      background-color: #222;
-      color: #fff;
-      border-color: #555;
-    }
-    .spinner {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid #555;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-left: 10px;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    #answerText {
-      white-space: pre-wrap;
-      font-size: 1rem;
-      line-height: 1.5;
-    }
-    .source-block {
-      margin-top: 10px;
-      padding: 10px;
-      border: 1px solid #aaa;
-      border-radius: 6px;
-      background: #f9f9f9;
-      font-size: 0.9em;
-    }
-    .source-text {
-      margin-top: 5px;
-      color: #333;
-      cursor: pointer;
-    }
-    .history-item {
-      margin: 10px 0;
-      padding: 5px;
-      border-bottom: 1px solid #ccc;
-    }
-    .history-item button {
-      margin-left: 10px;
-    }
-  </style>
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 </head>
 <body>
-  <h1>SmartAI Audio Transcriber</h1>
-  <input type="file" id="fileInput" />
-  <button onclick="uploadFile()">Upload & Transcribe</button>
-  <div id="transcriptHistory"></div>
-  <hr>
-  <h2>Ask a Question</h2>
-  <input type="text" id="questionInput" placeholder="Ask a question..." />
-  <button onclick="askQuestion()">Ask</button>
-  <div id="spinner" class="spinner" style="display: none;"></div>
-  <div id="answerBox">
-    <div id="answerText"></div>
-    <div id="sourcesBox"></div>
+  <h1>SmartAI Portal</h1>
+
+  <div id="authBox">
+    <input type="text" id="loginUser" placeholder="Username" />
+    <input type="password" id="loginPass" placeholder="Password" />
+    <button onclick="login()">Login</button>
+    <p>or <a href="#" onclick="showRegister()">Register</a></p>
+  </div>
+
+  <div id="registerBox" style="display:none">
+    <input type="text" id="regUser" placeholder="Username" />
+    <input type="text" id="regName" placeholder="Full Name" />
+    <input type="password" id="regPass" placeholder="Password" />
+    <input type="text" id="regCode" placeholder="Invite Code" />
+    <button onclick="register()">Submit</button>
+    <p><a href="#" onclick="cancelRegister()">Cancel</a></p>
+  </div>
+
+  <div id="appBox" style="display:none">
+    <span id="greeting"></span>
+    <button onclick="logout()">Logout</button>
+    <button onclick="showChangePass()">Change Password</button>
+    <button onclick="getInviteCode()">Generate Invite (Admin)</button>
+
+    <div id="changePassBox" style="display:none">
+      <input type="password" id="oldPass" placeholder="Old Password" />
+      <input type="password" id="newPass" placeholder="New Password" />
+      <button onclick="changePassword()">Change</button>
+      <button onclick="hideChangePass()">Cancel</button>
+    </div>
+
+    <hr>
+    <input type="file" id="fileInput" />
+    <button onclick="uploadFile()">Upload & Transcribe</button>
+    <div id="transcriptHistory"></div>
+    <hr>
+    <h2>Ask a Question</h2>
+    <input type="text" id="questionInput" placeholder="Ask a question..." />
+    <button onclick="askQuestion()">Ask</button>
+    <div id="answerBox"><pre id="answerText"></pre></div>
   </div>
 
   <script>
-    async function askQuestion() {
-      const question = document.getElementById("questionInput").value;
-      const answerText = document.getElementById("answerText");
-      const sourcesBox = document.getElementById("sourcesBox");
-      const spinner = document.getElementById("spinner");
-
-      answerText.innerHTML = "";
-      sourcesBox.innerHTML = "";
-      spinner.style.display = "inline-block";
-
-      try {
-        const sourceRes = await fetch("/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question }),
-        });
-        const sourceData = await sourceRes.json();
-
-        (sourceData.sources || []).forEach((src) => {
-          const block = document.createElement("div");
-          block.className = "source-block";
-
-          const label = document.createElement("div");
-          label.innerHTML = `<strong>Source:</strong> ${src.source}`;
-
-          const preview = document.createElement("div");
-          preview.className = "source-text";
-          preview.innerText = src.text;
-          preview.onclick = () => alert(`Full snippet from ${src.source}:\n\n${src.text}`);
-
-          block.appendChild(label);
-          block.appendChild(preview);
-          sourcesBox.appendChild(block);
-        });
-
-        const response = await fetch(`/ask-stream?question=${encodeURIComponent(question)}`);
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder("utf-8");
-
-        spinner.style.display = "none";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n").filter(line => line.startsWith("data:"));
-          lines.forEach(line => {
-            const text = line.replace("data:", "");
-            answerText.innerHTML += text;
-          });
-        }
-      } catch (err) {
-        spinner.style.display = "none";
-        answerText.innerHTML = "Error: " + err.message;
-      }
+    function showToast(msg, type = 'info') {
+      const colors = { success: '#4CAF50', error: '#f44336', info: '#2196F3' };
+      Toastify({ text: msg, duration: 3000, gravity: 'top', position: 'right', backgroundColor: colors[type] }).showToast();
     }
 
-    async function loadHistory() {
+    function showRegister() {
+      document.getElementById('authBox').style.display = 'none';
+      document.getElementById('registerBox').style.display = 'block';
+    }
+    function cancelRegister() {
+      document.getElementById('registerBox').style.display = 'none';
+      document.getElementById('authBox').style.display = 'block';
+    }
+    async function register() {
+      const body = {
+        username: document.getElementById('regUser').value,
+        full_name: document.getElementById('regName').value,
+        password: document.getElementById('regPass').value,
+        invite_code: document.getElementById('regCode').value
+      };
       try {
-        const res = await fetch("/api/history");
-        const data = await res.json();
-        console.log("📦 /api/history returned:", data);
-
-        const historyDiv = document.getElementById("transcriptHistory");
-        historyDiv.innerHTML = "<h3>Transcript History</h3>";
-
-        const files = Array.isArray(data.files) ? data.files : [];
-
-        if (files.length === 0) {
-          historyDiv.innerHTML += "<p>No transcripts found.</p>";
-          return;
-        }
-
-        files.forEach((filename) => {
-          const div = document.createElement("div");
-          div.className = "history-item";
-
-          const nameSpan = document.createElement("span");
-          nameSpan.innerText = `📄 ${filename}`;
-
-          const previewBtn = document.createElement("button");
-          previewBtn.innerText = "Preview";
-          const previewBox = document.createElement("div");
-          previewBox.style.display = "none";
-          previewBox.style.marginTop = "5px";
-          previewBox.style.padding = "6px";
-          previewBox.style.border = "1px solid #ccc";
-          previewBox.style.borderRadius = "4px";
-          previewBox.style.background = "#f9f9f9";
-          previewBox.style.whiteSpace = "pre-wrap";
-
-          previewBtn.onclick = async () => {
-            if (previewBox.style.display === "none") {
-              const res = await fetch(`/api/transcript/${filename}`);
-              const data = await res.json();
-              previewBox.innerText = data.transcript || "[Empty]";
-              previewBox.style.display = "block";
-            } else {
-              previewBox.style.display = "none";
-            }
-          };
-
-          const downloadBtn = document.createElement("button");
-          downloadBtn.innerText = "Download";
-          downloadBtn.onclick = () => {
-            window.location.href = `/api/download/${filename}`;
-          };
-
-          const deleteBtn = document.createElement("button");
-          deleteBtn.innerText = "Delete";
-          deleteBtn.onclick = async () => {
-            if (confirm(`Delete ${filename}?`)) {
-              await fetch(`/api/delete/${filename}`, { method: "DELETE" });
-              loadHistory();
-            }
-          };
-
-          div.appendChild(nameSpan);
-          div.appendChild(previewBtn);
-          div.appendChild(downloadBtn);
-          div.appendChild(deleteBtn);
-          div.appendChild(previewBox);
-
-          historyDiv.appendChild(div);
+        const res = await fetch('/register', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
         });
-      } catch (err) {
-        document.getElementById("transcriptHistory").innerHTML = "<p>Failed to load history.</p>";
-        console.error("❌ Failed to load history:", err);
-      }
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Registration failed');
+        showToast("Registered successfully!", "success");
+        cancelRegister();
+      } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    async function login() {
+      const user = document.getElementById("loginUser").value;
+      const pass = document.getElementById("loginPass").value;
+      const body = `username=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}`;
+      try {
+        const res = await fetch('/login', {
+          method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail);
+        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('username', user);
+        document.getElementById("authBox").style.display = "none";
+        document.getElementById("appBox").style.display = "block";
+        document.getElementById("greeting").innerText = `👋 Welcome, ${user}`;
+        loadHistory();
+      } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    function logout() {
+      localStorage.clear();
+      location.reload();
+    }
+
+    function showChangePass() {
+      document.getElementById('changePassBox').style.display = 'block';
+    }
+    function hideChangePass() {
+      document.getElementById('changePassBox').style.display = 'none';
+    }
+    async function changePassword() {
+      const old_password = document.getElementById('oldPass').value;
+      const new_password = document.getElementById('newPass').value;
+      const res = await fetch('/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({ old_password, new_password })
+      });
+      const data = await res.json();
+      if (!res.ok) return showToast(data.detail || 'Error', 'error');
+      showToast("Password changed!", "success");
+      hideChangePass();
+    }
+
+    async function getInviteCode() {
+      const res = await fetch('/invite', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      const data = await res.json();
+      if (!res.ok) return showToast(data.detail || 'Failed', 'error');
+      navigator.clipboard.writeText(data.invite_code);
+      showToast(`Invite copied: ${data.invite_code}`, 'info');
     }
 
     async function uploadFile() {
-      const fileInput = document.getElementById("fileInput");
-      const file = fileInput.files[0];
-      if (!file) return alert("Please select a file to upload.");
-
+      const file = document.getElementById("fileInput").files[0];
+      if (!file) return showToast("Select a file", 'error');
       const formData = new FormData();
       formData.append("file", file);
-
-      try {
-        await fetch("/upload-and-transcribe", {
-          method: "POST",
-          body: formData
-        });
-        alert("Transcription complete.");
-        loadHistory();
-      } catch (err) {
-        alert("Error uploading file: " + err.message);
-      }
+      const res = await fetch("/upload-and-transcribe", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        body: formData
+      });
+      if (res.ok) { showToast("Uploaded", 'success'); loadHistory(); }
+      else showToast("Failed to upload", 'error');
     }
 
-    window.onload = loadHistory;
+    async function loadHistory() {
+      const res = await fetch("/api/history", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      const data = await res.json();
+      const div = document.getElementById("transcriptHistory");
+      div.innerHTML = "<h3>Transcript History</h3>";
+      data.files.forEach(filename => {
+        const item = document.createElement("div");
+        item.innerText = filename;
+        div.appendChild(item);
+      });
+    }
+
+    async function askQuestion() {
+      const q = document.getElementById("questionInput").value;
+      const res = await fetch("/ask", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({ question: q })
+      });
+      const data = await res.json();
+      document.getElementById("answerText").innerText = data.answer || 'No response.';
+    }
   </script>
 </body>
 </html>
