@@ -4,13 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SmartAI</title>
-  <link rel="stylesheet" href="/static/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 </head>
 <body>
-  <h1>SmartAI Portal</h1>
+  <h1>SmartAI Audio Transcriber</h1>
 
-  <div id="authBox">
+  <div id="authBox" style="display: none;">
     <input type="text" id="loginUser" placeholder="Username" />
     <input type="password" id="loginPass" placeholder="Password" />
     <button onclick="login()">Login</button>
@@ -51,6 +50,21 @@
   </div>
 
   <script>
+    const BASE_URL = "https://smartai-transcriber.onrender.com";
+
+    window.onload = () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        document.getElementById("authBox").style.display = "block";
+        document.getElementById("appBox").style.display = "none";
+      } else {
+        document.getElementById("authBox").style.display = "none";
+        document.getElementById("appBox").style.display = "block";
+        document.getElementById("greeting").innerText = `👋 Welcome, ${localStorage.getItem("username")}`;
+        loadHistory();
+      }
+    };
+
     function showToast(msg, type = 'info') {
       const colors = { success: '#4CAF50', error: '#f44336', info: '#2196F3' };
       Toastify({ text: msg, duration: 3000, gravity: 'top', position: 'right', backgroundColor: colors[type] }).showToast();
@@ -60,10 +74,12 @@
       document.getElementById('authBox').style.display = 'none';
       document.getElementById('registerBox').style.display = 'block';
     }
+
     function cancelRegister() {
       document.getElementById('registerBox').style.display = 'none';
       document.getElementById('authBox').style.display = 'block';
     }
+
     async function register() {
       const body = {
         username: document.getElementById('regUser').value,
@@ -72,15 +88,18 @@
         invite_code: document.getElementById('regCode').value
       };
       try {
-        const res = await fetch('/register', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+        const res = await fetch(`${BASE_URL}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Registration failed');
         showToast("Registered successfully!", "success");
         cancelRegister();
-      } catch (err) { showToast(err.message, 'error'); }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
 
     async function login() {
@@ -88,8 +107,10 @@
       const pass = document.getElementById("loginPass").value;
       const body = `username=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}`;
       try {
-        const res = await fetch('/login', {
-          method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body
+        const res = await fetch(`${BASE_URL}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail);
@@ -99,7 +120,9 @@
         document.getElementById("appBox").style.display = "block";
         document.getElementById("greeting").innerText = `👋 Welcome, ${user}`;
         loadHistory();
-      } catch (err) { showToast(err.message, 'error'); }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
 
     function logout() {
@@ -110,13 +133,15 @@
     function showChangePass() {
       document.getElementById('changePassBox').style.display = 'block';
     }
+
     function hideChangePass() {
       document.getElementById('changePassBox').style.display = 'none';
     }
+
     async function changePassword() {
       const old_password = document.getElementById('oldPass').value;
       const new_password = document.getElementById('newPass').value;
-      const res = await fetch('/change-password', {
+      const res = await fetch(`${BASE_URL}/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -131,7 +156,7 @@
     }
 
     async function getInviteCode() {
-      const res = await fetch('/invite', {
+      const res = await fetch(`${BASE_URL}/invite`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
       });
@@ -146,32 +171,41 @@
       if (!file) return showToast("Select a file", 'error');
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/upload-and-transcribe", {
+      const res = await fetch(`${BASE_URL}/upload-and-transcribe`, {
         method: "POST",
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         body: formData
       });
-      if (res.ok) { showToast("Uploaded", 'success'); loadHistory(); }
-      else showToast("Failed to upload", 'error');
+      if (res.ok) {
+        showToast("Uploaded", 'success');
+        loadHistory();
+      } else {
+        showToast("Failed to upload", 'error');
+      }
     }
 
     async function loadHistory() {
-      const res = await fetch("/api/history", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-      });
-      const data = await res.json();
-      const div = document.getElementById("transcriptHistory");
-      div.innerHTML = "<h3>Transcript History</h3>";
-      data.files.forEach(filename => {
-        const item = document.createElement("div");
-        item.innerText = filename;
-        div.appendChild(item);
-      });
+      try {
+        const res = await fetch(`${BASE_URL}/api/history`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        });
+        const data = await res.json();
+        const div = document.getElementById("transcriptHistory");
+        div.innerHTML = "<h3>Transcript History</h3>";
+        data.files.forEach(filename => {
+          const item = document.createElement("div");
+          item.innerText = filename;
+          div.appendChild(item);
+        });
+      } catch (err) {
+        showToast("Failed to load history", 'error');
+        console.error(err);
+      }
     }
 
     async function askQuestion() {
       const q = document.getElementById("questionInput").value;
-      const res = await fetch("/ask", {
+      const res = await fetch(`${BASE_URL}/ask`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
