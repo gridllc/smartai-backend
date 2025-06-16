@@ -17,6 +17,7 @@
     .source-text { margin-top: 5px; color: #333; cursor: pointer; }
     .history-item { margin: 10px 0; padding: 5px; border-bottom: 1px solid #ccc; }
     .history-item button { margin-left: 10px; }
+    #logout, #darkToggle { float: right; margin-left: 10px; }
   </style>
 </head>
 <body>
@@ -25,10 +26,23 @@
     <input type="email" id="loginEmail" placeholder="Email" />
     <input type="password" id="loginPassword" placeholder="Password" />
     <button onclick="login()">Login</button>
+    <p>Need an account? <a href="#" onclick="showRegister()">Register here</a></p>
+  </div>
+
+  <div id="registerBox" style="display:none">
+    <h2>Register</h2>
+    <input type="text" id="registerName" placeholder="Full Name" />
+    <input type="email" id="registerEmail" placeholder="Email" />
+    <input type="password" id="registerPassword" placeholder="Password" />
+    <input type="text" id="registerCode" placeholder="Invite Code" />
+    <button onclick="register()">Register</button>
+    <p>Already have an account? <a href="#" onclick="showLogin()">Go to login</a></p>
   </div>
 
   <div id="appUI" style="display: none">
-    <h1>SmartAI Audio Transcriber</h1>
+    <button id="logout" onclick="logout()">Logout</button>
+    <button id="darkToggle" onclick="toggleDarkMode()">🌙 Toggle Dark</button>
+    <h1 id="welcomeHeader">SmartAI Audio Transcriber</h1>
     <input type="file" id="fileInput" />
     <button onclick="uploadFile()">Upload & Transcribe</button>
     <div id="transcriptHistory"></div>
@@ -44,11 +58,31 @@
   </div>
 
   <script>
-    const token = localStorage.getItem("token") || null;
-
     function showToast(message, type = "info") {
       let bg = { success: "#4CAF50", error: "#f44336", info: "#2196F3" }[type] || "#333";
       Toastify({ text: message, duration: 3000, gravity: "top", position: "right", backgroundColor: bg }).showToast();
+    }
+
+    function logout() {
+      localStorage.removeItem("token");
+      document.getElementById("loginBox").style.display = "block";
+      document.getElementById("appUI").style.display = "none";
+      document.getElementById("registerBox").style.display = "none";
+      showToast("Logged out", "info");
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark");
+    }
+
+    function showRegister() {
+      document.getElementById("loginBox").style.display = "none";
+      document.getElementById("registerBox").style.display = "block";
+    }
+
+    function showLogin() {
+      document.getElementById("registerBox").style.display = "none";
+      document.getElementById("loginBox").style.display = "block";
     }
 
     function login() {
@@ -66,10 +100,54 @@
         localStorage.setItem("token", data.token);
         document.getElementById("loginBox").style.display = "none";
         document.getElementById("appUI").style.display = "block";
+        document.getElementById("welcomeHeader").innerText = `Welcome, ${email}`;
         loadHistory();
+        showToast("Login successful", "success");
       }).catch(err => {
         showToast("Login error: " + err.message, "error");
       });
+    }
+
+    function register() {
+      const full_name = document.getElementById("registerName").value;
+      const username = document.getElementById("registerEmail").value;
+      const password = document.getElementById("registerPassword").value;
+      const invite_code = document.getElementById("registerCode").value;
+
+      fetch("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ full_name, username, password, invite_code })
+      }).then(res => {
+        if (!res.ok) throw new Error("Registration failed");
+        return res.json();
+      }).then(() => {
+        showToast("Account created! Please login.", "success");
+        showLogin();
+      }).catch(err => {
+        showToast("Registration error: " + err.message, "error");
+      });
+    }
+
+    async function uploadFile() {
+      const fileInput = document.getElementById("fileInput");
+      const file = fileInput.files[0];
+      if (!file) return showToast("Please select a file to upload.", "error");
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        await fetch("/upload-and-transcribe", {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + localStorage.getItem("token") },
+          body: formData
+        });
+        showToast("Transcription complete.", "success");
+        loadHistory();
+      } catch (err) {
+        showToast("Upload error: " + err.message, "error");
+      }
     }
 
     async function askQuestion() {
@@ -83,14 +161,17 @@
       spinner.style.display = "inline-block";
 
       try {
-        const sourceRes = await fetch("/ask", {
+        const res = await fetch("/ask", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("token") },
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + localStorage.getItem("token")
+          },
           body: JSON.stringify({ question })
         });
-        const sourceData = await sourceRes.json();
+        const sourceData = await res.json();
 
-        (sourceData.sources || []).forEach((src) => {
+        (sourceData.sources || []).forEach(src => {
           const block = document.createElement("div");
           block.className = "source-block";
 
@@ -142,14 +223,7 @@
         const historyDiv = document.getElementById("transcriptHistory");
         historyDiv.innerHTML = "<h3>Transcript History</h3>";
 
-        const files = Array.isArray(data.files) ? data.files : [];
-
-        if (files.length === 0) {
-          historyDiv.innerHTML += "<p>No transcripts found.</p>";
-          return;
-        }
-
-        files.forEach((filename) => {
+        (data.files || []).forEach(filename => {
           const div = document.createElement("div");
           div.className = "history-item";
 
@@ -214,31 +288,11 @@
       }
     }
 
-    async function uploadFile() {
-      const fileInput = document.getElementById("fileInput");
-      const file = fileInput.files[0];
-      if (!file) return showToast("Please select a file to upload.", "error");
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      try {
-        await fetch("/upload-and-transcribe", {
-          method: "POST",
-          headers: { "Authorization": "Bearer " + localStorage.getItem("token") },
-          body: formData
-        });
-        showToast("Transcription complete.", "success");
-        loadHistory();
-      } catch (err) {
-        showToast("Upload error: " + err.message, "error");
-      }
-    }
-
     window.onload = () => {
       if (localStorage.getItem("token")) {
         document.getElementById("loginBox").style.display = "none";
         document.getElementById("appUI").style.display = "block";
+        document.getElementById("welcomeHeader").innerText = `Welcome, ${localStorage.getItem("token")}`;
         loadHistory();
       }
     };
