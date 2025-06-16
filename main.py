@@ -35,7 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize database with user and transcript tables
+# Initialize database
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -44,11 +44,11 @@ def init_db():
         transcript TEXT,
         timestamp TEXT
     )""")
-    c.execute("DROP TABLE IF EXISTS users")
-    c.execute("""CREATE TABLE users (
+    c.execute("""CREATE TABLE IF NOT EXISTS users (
         email TEXT PRIMARY KEY,
         password TEXT
     )""")
+    # Seed initial accounts if desired
     c.execute("INSERT OR IGNORE INTO users (email, password) VALUES (?, ?)", ("patrick@gridllc.net", "1Password"))
     c.execute("INSERT OR IGNORE INTO users (email, password) VALUES (?, ?)", ("davidgriffin99@gmail.com", "2Password"))
     conn.commit()
@@ -88,6 +88,19 @@ async def login(payload: LoginRequest):
     if not row or row[0] != payload.password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return {"token": payload.email}
+
+@app.post("/register")
+async def register(payload: LoginRequest):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT email FROM users WHERE email = ?", (payload.email,))
+    if c.fetchone():
+        conn.close()
+        raise HTTPException(status_code=409, detail="User already exists")
+    c.execute("INSERT INTO users (email, password) VALUES (?, ?)", (payload.email, payload.password))
+    conn.commit()
+    conn.close()
+    return {"message": "User registered"}
 
 @app.get("/")
 async def serve_index():
