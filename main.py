@@ -42,13 +42,15 @@ def init_db():
         timestamp TEXT
     )""")
 
-    c.execute("""CREATE TABLE IF NOT EXISTS users (
+    # 🔥 Drop broken users table and recreate cleanly
+    c.execute("DROP TABLE IF EXISTS users")
+    c.execute("""CREATE TABLE users (
         email TEXT PRIMARY KEY,
         password TEXT
     )""")
 
-    c.execute("INSERT OR IGNORE INTO users (email, password) VALUES (?, ?)", ("patrick@gridllc.net", "1Password"))
-    c.execute("INSERT OR IGNORE INTO users (email, password) VALUES (?, ?)", ("davidgriffin99@gmail.com", "2Password"))
+    c.execute("INSERT INTO users (email, password) VALUES (?, ?)", ("patrick@gridllc.net", "1Password"))
+    c.execute("INSERT INTO users (email, password) VALUES (?, ?)", ("davidgriffin99@gmail.com", "2Password"))
 
     conn.commit()
     conn.close()
