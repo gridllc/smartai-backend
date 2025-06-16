@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SmartAI Audio Transcriber</title>
   <link rel="stylesheet" href="/static/style.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
   <style>
     .spinner {
       display: none;
@@ -21,6 +19,12 @@
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+    .history-item {
+      margin-bottom: 10px;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
     }
   </style>
 </head>
@@ -51,39 +55,28 @@
   </div>
 
   <script>
-    function showToast(message, type = "info") {
-      const bg = { success: "#4CAF50", error: "#f44336", info: "#2196F3" }[type] || "#333";
-      Toastify({ text: message, duration: 3000, gravity: "top", position: "right", backgroundColor: bg }).showToast();
-    }
-
     function login() {
       const email = document.getElementById("loginEmail").value;
       const password = document.getElementById("loginPassword").value;
-
       fetch("/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password })
       })
-      .then(res => {
-        if (!res.ok) throw new Error("Login failed");
-        return res.json();
-      })
+      .then(res => res.json())
       .then(data => {
         localStorage.setItem("token", data.token);
         document.getElementById("loginBox").style.display = "none";
         document.getElementById("appUI").style.display = "block";
         document.getElementById("welcomeHeader").innerText = `Welcome, ${data.token}`;
         loadHistory();
-        showToast("Login successful", "success");
       })
-      .catch(err => showToast("Login error: " + err.message, "error"));
+      .catch(() => alert("Login failed"));
     }
 
     function logout() {
       localStorage.removeItem("token");
-      document.getElementById("loginBox").style.display = "block";
-      document.getElementById("appUI").style.display = "none";
+      location.reload();
     }
 
     async function uploadFile() {
@@ -91,93 +84,85 @@
       const file = fileInput.files[0];
       const spinner = document.getElementById("spinner");
 
-      if (!file) return showToast("Please select a file to upload.", "error");
+      if (!file) return alert("Please select a file to upload.");
 
       const formData = new FormData();
       formData.append("file", file);
 
       try {
         spinner.style.display = "inline-block";
-
         const res = await fetch("/upload-and-transcribe", {
           method: "POST",
           headers: { "Authorization": "Bearer " + localStorage.getItem("token") },
           body: formData
         });
-
         spinner.style.display = "none";
-
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.detail || "Upload failed");
+        const data = await res.json();
+        if (data.filename) {
+          loadHistory(data.filename); // auto-preview new one
         }
-
-        showToast("Transcription complete.", "success");
-        loadHistory();
       } catch (err) {
         spinner.style.display = "none";
-        showToast("Upload error: " + err.message, "error");
+        alert("Upload failed");
       }
     }
 
-    async function loadHistory() {
-      try {
-        const res = await fetch("/api/history", {
-          headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
-        });
-        const data = await res.json();
+    async function loadHistory(highlightFilename) {
+      const res = await fetch("/api/history", {
+        headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+      });
+      const data = await res.json();
+      const container = document.getElementById("transcriptHistory");
+      container.innerHTML = "<h3>Transcript History</h3>";
 
-        const container = document.getElementById("transcriptHistory");
-        container.innerHTML = "<h3>Transcript History</h3>";
+      for (const file of data.files) {
+        const { filename, summary } = file;
+        const div = document.createElement("div");
+        div.className = "history-item";
+        div.id = "item-" + filename;
 
-        (data.files || []).forEach(filename => {
-          const div = document.createElement("div");
-          div.className = "history-item";
+        const title = document.createElement("strong");
+        title.innerText = filename + "\n";
 
-          const nameSpan = document.createElement("span");
-          nameSpan.innerText = `📄 ${filename}`;
+        const summaryBox = document.createElement("p");
+        summaryBox.innerText = summary || "No summary available.";
 
-          const previewBtn = document.createElement("button");
-          previewBtn.innerText = "Preview";
-          const previewBox = document.createElement("div");
-          previewBox.style.display = "none";
+        const previewBtn = document.createElement("button");
+        previewBtn.innerText = "Preview";
 
-          previewBtn.onclick = async () => {
-            const res = await fetch(`/api/transcript/${filename}`, {
-              headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
-            });
-            const data = await res.json();
-            previewBox.innerText = data.transcript || "[Empty]";
-            previewBox.style.display = "block";
-          };
+        const previewBox = document.createElement("div");
+        previewBox.style.display = "none";
 
-          const downloadBtn = document.createElement("button");
-          downloadBtn.innerText = "Download";
-          downloadBtn.onclick = () => {
-            window.location.href = `/api/download/${filename}`;
-          };
+        previewBtn.onclick = async () => {
+          const res = await fetch(`/api/transcript/${filename}`, {
+            headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+          });
+          const data = await res.json();
+          previewBox.innerText = data.transcript;
+          previewBox.style.display = "block";
+        };
 
-          const deleteBtn = document.createElement("button");
-          deleteBtn.innerText = "Delete";
-          deleteBtn.onclick = async () => {
-            await fetch(`/api/delete/${filename}`, {
-              method: "DELETE",
-              headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
-            });
-            showToast(`${filename} deleted`, "info");
-            loadHistory();
-          };
+        const downloadBtn = document.createElement("button");
+        downloadBtn.innerText = "Download";
+        downloadBtn.onclick = () => window.location.href = `/api/download/${filename}`;
 
-          div.appendChild(nameSpan);
-          div.appendChild(previewBtn);
-          div.appendChild(downloadBtn);
-          div.appendChild(deleteBtn);
-          div.appendChild(previewBox);
-          container.appendChild(div);
-        });
-      } catch (err) {
-        document.getElementById("transcriptHistory").innerHTML = "<p>Failed to load history.</p>";
-        showToast("Failed to load history", "error");
+        const deleteBtn = document.createElement("button");
+        deleteBtn.innerText = "Delete";
+        deleteBtn.onclick = async () => {
+          await fetch(`/api/delete/${filename}`, {
+            method: "DELETE",
+            headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+          });
+          loadHistory();
+        };
+
+        div.append(title, summaryBox, previewBtn, downloadBtn, deleteBtn, previewBox);
+        container.appendChild(div);
+
+        if (highlightFilename === filename) {
+          previewBtn.click();
+          setTimeout(() => document.getElementById("item-" + filename).scrollIntoView({ behavior: 'smooth' }), 300);
+        }
       }
     }
 
@@ -190,34 +175,16 @@
 
     async function askQuestion() {
       const question = document.getElementById("questionInput").value;
-      const answerText = document.getElementById("answerText");
-      const sourcesBox = document.getElementById("sourcesBox");
-
-      answerText.innerText = "";
-      sourcesBox.innerHTML = "";
-
-      try {
-        const res = await fetch("/ask", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + localStorage.getItem("token")
-          },
-          body: JSON.stringify({ question })
-        });
-
-        const data = await res.json();
-        answerText.innerText = data.answer;
-
-        (data.sources || []).forEach(src => {
-          const div = document.createElement("div");
-          div.className = "source-block";
-          div.innerText = src.text;
-          sourcesBox.appendChild(div);
-        });
-      } catch (err) {
-        showToast("Question failed: " + err.message, "error");
-      }
+      const res = await fetch("/ask", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + localStorage.getItem("token")
+        },
+        body: JSON.stringify({ question })
+      });
+      const data = await res.json();
+      document.getElementById("answerText").innerText = data.answer;
     }
 
     window.onload = () => {
@@ -227,9 +194,6 @@
         document.getElementById("appUI").style.display = "block";
         document.getElementById("welcomeHeader").innerText = `Welcome, ${token}`;
         loadHistory();
-      } else {
-        document.getElementById("loginBox").style.display = "block";
-        document.getElementById("appUI").style.display = "none";
       }
     };
   </script>
