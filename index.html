@@ -289,11 +289,16 @@
     }
 
     window.onload = () => {
-      if (localStorage.getItem("token")) {
+      const token = localStorage.getItem("token");
+      if (token) {
         document.getElementById("loginBox").style.display = "none";
         document.getElementById("appUI").style.display = "block";
-        document.getElementById("welcomeHeader").innerText = `Welcome, ${localStorage.getItem("token")}`;
+        document.getElementById("welcomeHeader").innerText = `Welcome, ${token}`;
         loadHistory();
+      } else {
+        document.getElementById("loginBox").style.display = "block";
+        document.getElementById("registerBox").style.display = "none";
+        document.getElementById("appUI").style.display = "none";
       }
     };
   </script>
