@@ -35,18 +35,25 @@ app.add_middleware(
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+
+    # Create transcripts table if needed
     c.execute("""CREATE TABLE IF NOT EXISTS transcripts (
         filename TEXT PRIMARY KEY,
         transcript TEXT,
         timestamp TEXT
     )""")
-    c.execute("""CREATE TABLE IF NOT EXISTS users (
+
+    # Force DROP + recreate users table to fix corrupted schema
+    c.execute("DROP TABLE IF EXISTS users")
+    c.execute("""CREATE TABLE users (
         email TEXT PRIMARY KEY,
         password TEXT
     )""")
-    # Only run once: seed users
-    c.execute("INSERT OR IGNORE INTO users (email, password) VALUES (?, ?)", ("patrick@gridllc.net", "1Password"))
-    c.execute("INSERT OR IGNORE INTO users (email, password) VALUES (?, ?)", ("davidgriffin99@gmail.com", "2Password"))
+
+    # Add initial users
+    c.execute("INSERT INTO users (email, password) VALUES (?, ?)", ("patrick@gridllc.net", "1Password"))
+    c.execute("INSERT INTO users (email, password) VALUES (?, ?)", ("davidgriffin99@gmail.com", "2Password"))
+
     conn.commit()
     conn.close()
 
@@ -239,4 +246,5 @@ async def get_static_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path)
     return JSONResponse(status_code=404, content={"error": "File not found"})
+
 
