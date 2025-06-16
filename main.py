@@ -12,7 +12,6 @@ from pinecone_sdk import search_similar_chunks
 
 app = FastAPI()
 
-# Directories
 UPLOAD_DIR = "uploads"
 TRANSCRIPT_DIR = "transcripts"
 STATIC_DIR = "static"
@@ -22,11 +21,9 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(TRANSCRIPT_DIR, exist_ok=True)
 os.makedirs(STATIC_DIR, exist_ok=True)
 
-# Mount static files
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,26 +32,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# TEMP: Drop and recreate users table to fix broken schema
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    
     c.execute("""CREATE TABLE IF NOT EXISTS transcripts (
         filename TEXT PRIMARY KEY,
         transcript TEXT,
         timestamp TEXT
     )""")
-
-    c.execute("DROP TABLE IF EXISTS users")
     c.execute("""CREATE TABLE IF NOT EXISTS users (
         email TEXT PRIMARY KEY,
         password TEXT
     )""")
-
-    c.execute("INSERT INTO users (email, password) VALUES (?, ?)", ("patrick@gridllc.net", "1Password"))
-    c.execute("INSERT INTO users (email, password) VALUES (?, ?)", ("davidgriffin99@gmail.com", "2Password"))
-
+    # Only run once: seed users
+    c.execute("INSERT OR IGNORE INTO users (email, password) VALUES (?, ?)", ("patrick@gridllc.net", "1Password"))
+    c.execute("INSERT OR IGNORE INTO users (email, password) VALUES (?, ?)", ("davidgriffin99@gmail.com", "2Password"))
     conn.commit()
     conn.close()
 
@@ -113,17 +105,35 @@ async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_tok
     file_location = os.path.join(UPLOAD_DIR, file.filename)
     with open(file_location, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
+    print(f"📁 Saved file to {file_location}")
 
-    transcript = transcribe_audio(file_location)
-    with open(os.path.join(TRANSCRIPT_DIR, file.filename + ".txt"), "w", encoding="utf-8") as f:
-        f.write(transcript)
+    try:
+        transcript = transcribe_audio(file_location)
+        print(f"📝 Transcript result: {transcript[:100]}...")
+    except Exception as e:
+        print(f"❌ Transcription failed: {e}")
+        raise HTTPException(status_code=500, detail="Transcription failed")
 
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("REPLACE INTO transcripts (filename, transcript, timestamp) VALUES (?, ?, ?)",
-              (file.filename, transcript, datetime.utcnow().isoformat()))
-    conn.commit()
-    conn.close()
+    try:
+        txt_path = os.path.join(TRANSCRIPT_DIR, file.filename + ".txt")
+        with open(txt_path, "w", encoding="utf-8") as f:
+            f.write(transcript)
+        print(f"✅ Transcript written to {txt_path}")
+    except Exception as e:
+        print(f"❌ Writing transcript failed: {e}")
+        raise HTTPException(status_code=500, detail="Saving transcript failed")
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("REPLACE INTO transcripts (filename, transcript, timestamp) VALUES (?, ?, ?)",
+                  (file.filename, transcript, datetime.utcnow().isoformat()))
+        conn.commit()
+        conn.close()
+        print(f"📦 Transcript saved to DB for {file.filename}")
+    except Exception as e:
+        print(f"❌ DB insert failed: {e}")
+        raise HTTPException(status_code=500, detail="Database write failed")
 
     return {"filename": file.filename, "transcript": transcript}
 
@@ -229,3 +239,4 @@ async def get_static_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path)
     return JSONResponse(status_code=404, content={"error": "File not found"})
+
