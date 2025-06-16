@@ -9,6 +9,11 @@ import shutil
 from datetime import datetime
 from upload_processor import transcribe_audio, get_openai_client
 from pinecone_sdk import search_similar_chunks
+import smtplib
+from email.message import EmailMessage
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -36,9 +41,7 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    # 🔥 Drop and recreate transcripts table with timestamp
-    c.execute("DROP TABLE IF EXISTS transcripts")
-    c.execute("""CREATE TABLE transcripts (
+    c.execute("""CREATE TABLE IF NOT EXISTS transcripts (
         filename TEXT PRIMARY KEY,
         transcript TEXT,
         timestamp TEXT
@@ -106,6 +109,28 @@ async def register(payload: LoginRequest):
 async def serve_index():
     return FileResponse("static/index.html")
 
+def send_email_with_attachment(to_email, subject, body, file_path):
+    try:
+        msg = EmailMessage()
+        msg["From"] = os.getenv("EMAIL_USER")
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.set_content(body)
+
+        with open(file_path, "rb") as f:
+            file_data = f.read()
+            file_name = os.path.basename(file_path)
+
+        msg.add_attachment(file_data, maintype="text", subtype="plain", filename=file_name)
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(os.getenv("EMAIL_USER"), os.getenv("EMAIL_PASS"))
+            smtp.send_message(msg)
+
+        print(f"📧 Email sent to {to_email} with {file_name}")
+    except Exception as e:
+        print(f"❌ Email failed: {e}")
+
 @app.post("/upload-and-transcribe")
 async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_token)):
     file_location = os.path.join(UPLOAD_DIR, file.filename)
@@ -140,6 +165,13 @@ async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_tok
     except Exception as e:
         print(f"❌ DB insert failed: {e}")
         raise HTTPException(status_code=500, detail="Database write failed")
+
+    send_email_with_attachment(
+        to_email=user,
+        subject="Your SmartAI Transcript",
+        body=f"Attached is your transcript for file: {file.filename}",
+        file_path=txt_path
+    )
 
     return {"filename": file.filename, "transcript": transcript}
 
@@ -206,31 +238,6 @@ async def ask_question(request: AskRequest, user: str = Depends(verify_token)):
         "answer": response.choices[0].message.content,
         "sources": relevant_chunks
     }
-
-@app.get("/ask-stream")
-async def ask_stream(question: str, user: str = Depends(verify_token)):
-    relevant_chunks = search_similar_chunks(question, top_k=5)
-    context_block = "\n\n".join([chunk["text"] for chunk in relevant_chunks])
-    system_prompt = (
-        "You are a helpful assistant. Use the following transcript snippets to answer the question.\n\n"
-        f"{context_block}\n\n"
-        "Question: " + question
-    )
-    client = get_openai_client()
-
-    async def event_generator():
-        stream = client.chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "system", "content": system_prompt}],
-            temperature=0.3,
-            max_tokens=500,
-            stream=True
-        )
-        async for chunk in stream:
-            if chunk.choices[0].delta.content:
-                yield f"data: {chunk.choices[0].delta.content}\n\n"
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.get("/uploads/{filename}")
 async def get_uploaded_file(filename: str):
