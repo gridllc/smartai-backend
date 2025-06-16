@@ -35,28 +35,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize database
+# TEMP: Drop and recreate users table to fix broken schema
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    
     c.execute("""CREATE TABLE IF NOT EXISTS transcripts (
         filename TEXT PRIMARY KEY,
         transcript TEXT,
         timestamp TEXT
     )""")
+
+    c.execute("DROP TABLE IF EXISTS users")
     c.execute("""CREATE TABLE IF NOT EXISTS users (
         email TEXT PRIMARY KEY,
         password TEXT
     )""")
-    # Seed initial accounts if desired
-    c.execute("INSERT OR IGNORE INTO users (email, password) VALUES (?, ?)", ("patrick@gridllc.net", "1Password"))
-    c.execute("INSERT OR IGNORE INTO users (email, password) VALUES (?, ?)", ("davidgriffin99@gmail.com", "2Password"))
+
+    c.execute("INSERT INTO users (email, password) VALUES (?, ?)", ("patrick@gridllc.net", "1Password"))
+    c.execute("INSERT INTO users (email, password) VALUES (?, ?)", ("davidgriffin99@gmail.com", "2Password"))
+
     conn.commit()
     conn.close()
 
 init_db()
 
-# Models
 class AskRequest(BaseModel):
     question: str
 
@@ -64,7 +67,6 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
-# Auth helper
 def verify_token(authorization: str = Header(...)):
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid token format")
@@ -227,4 +229,3 @@ async def get_static_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path)
     return JSONResponse(status_code=404, content={"error": "File not found"})
-
