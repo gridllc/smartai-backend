@@ -36,13 +36,14 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    c.execute("""CREATE TABLE IF NOT EXISTS transcripts (
+    # 🔥 Drop and recreate transcripts table with timestamp
+    c.execute("DROP TABLE IF EXISTS transcripts")
+    c.execute("""CREATE TABLE transcripts (
         filename TEXT PRIMARY KEY,
         transcript TEXT,
         timestamp TEXT
     )""")
 
-    # 🔥 Drop broken users table and recreate cleanly
     c.execute("DROP TABLE IF EXISTS users")
     c.execute("""CREATE TABLE users (
         email TEXT PRIMARY KEY,
@@ -244,5 +245,3 @@ async def get_static_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path)
     return JSONResponse(status_code=404, content={"error": "File not found"})
-
-
