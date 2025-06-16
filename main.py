@@ -44,7 +44,8 @@ def init_db():
     c.execute("""CREATE TABLE IF NOT EXISTS transcripts (
         filename TEXT PRIMARY KEY,
         transcript TEXT,
-        timestamp TEXT
+        timestamp TEXT,
+        summary TEXT
     )""")
 
     c.execute("DROP TABLE IF EXISTS users")
@@ -55,6 +56,15 @@ def init_db():
 
     c.execute("INSERT INTO users (email, password) VALUES (?, ?)", ("patrick@gridllc.net", "1Password"))
     c.execute("INSERT INTO users (email, password) VALUES (?, ?)", ("davidgriffin99@gmail.com", "2Password"))
+
+    c.execute("""CREATE TABLE IF NOT EXISTS questions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user TEXT,
+        filename TEXT,
+        question TEXT,
+        answer TEXT,
+        asked_at TEXT
+    )""")
 
     conn.commit()
     conn.close()
@@ -155,13 +165,29 @@ async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_tok
         raise HTTPException(status_code=500, detail="Saving transcript failed")
 
     try:
+        client = get_openai_client()
+        summary_response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "Summarize this transcript in 2–3 sentences."},
+                {"role": "user", "content": transcript[:3000]}
+            ],
+            max_tokens=200,
+            temperature=0.5
+        )
+        summary = summary_response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"❌ GPT Summary failed: {e}")
+        summary = "(Summary unavailable)"
+
+    try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
-        c.execute("REPLACE INTO transcripts (filename, transcript, timestamp) VALUES (?, ?, ?)",
-                  (file.filename, transcript, datetime.utcnow().isoformat()))
+        c.execute("REPLACE INTO transcripts (filename, transcript, timestamp, summary) VALUES (?, ?, ?, ?)",
+                  (file.filename, transcript, datetime.utcnow().isoformat(), summary))
         conn.commit()
         conn.close()
-        print(f"📦 Transcript saved to DB for {file.filename}")
+        print(f"📦 Transcript + summary saved to DB for {file.filename}")
     except Exception as e:
         print(f"❌ DB insert failed: {e}")
         raise HTTPException(status_code=500, detail="Database write failed")
@@ -169,20 +195,20 @@ async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_tok
     send_email_with_attachment(
         to_email=user,
         subject="Your SmartAI Transcript",
-        body=f"Attached is your transcript for file: {file.filename}",
+        body=f"Attached is your transcript for file: {file.filename}\n\nSummary:\n{summary}",
         file_path=txt_path
     )
 
-    return {"filename": file.filename, "transcript": transcript}
+    return {"filename": file.filename, "transcript": transcript, "summary": summary}
 
 @app.get("/api/history")
 async def history(user: str = Depends(verify_token)):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT filename FROM transcripts")
-    files = [row[0] for row in c.fetchall()]
+    c.execute("SELECT filename, timestamp, summary FROM transcripts")
+    rows = c.fetchall()
     conn.close()
-    return {"files": files}
+    return {"files": [{"filename": r[0], "timestamp": r[1], "summary": r[2]} for r in rows]}
 
 @app.get("/api/transcript/{filename}")
 async def get_transcript(filename: str, user: str = Depends(verify_token)):
@@ -234,10 +260,16 @@ async def ask_question(request: AskRequest, user: str = Depends(verify_token)):
         temperature=0.3,
         max_tokens=500
     )
-    return {
-        "answer": response.choices[0].message.content,
-        "sources": relevant_chunks
-    }
+    answer = response.choices[0].message.content
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO questions (user, filename, question, answer, asked_at) VALUES (?, ?, ?, ?, ?)",
+              (user, "contextual", question, answer, datetime.utcnow().isoformat()))
+    conn.commit()
+    conn.close()
+
+    return {"answer": answer, "sources": relevant_chunks}
 
 @app.get("/uploads/{filename}")
 async def get_uploaded_file(filename: str):
