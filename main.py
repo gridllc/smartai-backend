@@ -1,28 +1,30 @@
-from fastapi import FastAPI, UploadFile, Request, Header, HTTPException, Depends
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, StreamingResponse
-from pydantic import BaseModel
+import os
+import sqlite3
+from fastapi import FastAPI, UploadFile, Depends, HTTPException, Header
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-import shutil, os, sqlite3, asyncio
+from pydantic import BaseModel
+import shutil
 from datetime import datetime
-from pinecone_sdk import search_similar_chunks
 from upload_processor import transcribe_audio, get_openai_client
+from pinecone_sdk import search_similar_chunks
 
 app = FastAPI()
 
-# Paths
+# Directories
 UPLOAD_DIR = "uploads"
-TRANSCRIPTS_DIR = "transcripts"
+TRANSCRIPT_DIR = "transcripts"
+STATIC_DIR = "static"
 DB_PATH = "transcripts.db"
 
-# Ensure necessary folders exist BEFORE mounting
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(TRANSCRIPTS_DIR, exist_ok=True)
-os.makedirs("static", exist_ok=True)
+os.makedirs(TRANSCRIPT_DIR, exist_ok=True)
+os.makedirs(STATIC_DIR, exist_ok=True)
 
-# Mount folders
+# Mount static files
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # CORS
 app.add_middleware(
@@ -33,20 +35,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Init DB with persistent user insert
+# Initialize database with user and transcript tables
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS transcripts (
-                    filename TEXT PRIMARY KEY,
-                    transcript TEXT,
-                    timestamp TEXT
-                 )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
-                    email TEXT PRIMARY KEY,
-                    password TEXT
-                 )''')
-    # Ensure accounts exist
+    c.execute("""CREATE TABLE IF NOT EXISTS transcripts (
+        filename TEXT PRIMARY KEY,
+        transcript TEXT,
+        timestamp TEXT
+    )""")
+    c.execute("DROP TABLE IF EXISTS users")
+    c.execute("""CREATE TABLE users (
+        email TEXT PRIMARY KEY,
+        password TEXT
+    )""")
     c.execute("INSERT OR IGNORE INTO users (email, password) VALUES (?, ?)", ("patrick@gridllc.net", "1Password"))
     c.execute("INSERT OR IGNORE INTO users (email, password) VALUES (?, ?)", ("davidgriffin99@gmail.com", "2Password"))
     conn.commit()
@@ -54,6 +56,7 @@ def init_db():
 
 init_db()
 
+# Models
 class AskRequest(BaseModel):
     question: str
 
@@ -61,7 +64,7 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
-# --- Auth Helpers ---
+# Auth helper
 def verify_token(authorization: str = Header(...)):
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid token format")
@@ -97,7 +100,7 @@ async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_tok
         shutil.copyfileobj(file.file, buffer)
 
     transcript = transcribe_audio(file_location)
-    with open(os.path.join(TRANSCRIPTS_DIR, file.filename + ".txt"), "w") as f:
+    with open(os.path.join(TRANSCRIPT_DIR, file.filename + ".txt"), "w", encoding="utf-8") as f:
         f.write(transcript)
 
     conn = sqlite3.connect(DB_PATH)
@@ -109,8 +112,8 @@ async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_tok
 
     return {"filename": file.filename, "transcript": transcript}
 
-@app.get("/transcripts")
-async def list_transcripts(user: str = Depends(verify_token)):
+@app.get("/api/history")
+async def history(user: str = Depends(verify_token)):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT filename FROM transcripts")
@@ -118,24 +121,17 @@ async def list_transcripts(user: str = Depends(verify_token)):
     conn.close()
     return {"files": files}
 
-@app.get("/api/history")
-async def history(user: str = Depends(verify_token)):
-    return await list_transcripts(user)
-
 @app.get("/api/transcript/{filename}")
 async def get_transcript(filename: str, user: str = Depends(verify_token)):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT transcript FROM transcripts WHERE filename = ?", (filename,))
-    row = c.fetchone()
-    conn.close()
-    if row:
-        return {"filename": filename, "transcript": row[0]}
+    filepath = os.path.join(TRANSCRIPT_DIR, filename + ".txt")
+    if os.path.exists(filepath):
+        with open(filepath, "r", encoding="utf-8") as f:
+            return {"filename": filename, "transcript": f.read()}
     return JSONResponse(status_code=404, content={"error": "Transcript not found"})
 
 @app.get("/api/download/{filename}")
 async def download_transcript(filename: str, user: str = Depends(verify_token)):
-    filepath = os.path.join(TRANSCRIPTS_DIR, filename + ".txt")
+    filepath = os.path.join(TRANSCRIPT_DIR, filename + ".txt")
     if os.path.exists(filepath):
         return FileResponse(filepath, media_type='application/octet-stream', filename=filename + ".txt")
     return JSONResponse(status_code=404, content={"error": "Transcript file not found"})
@@ -148,7 +144,7 @@ async def delete_transcript(filename: str, user: str = Depends(verify_token)):
     conn.commit()
     conn.close()
 
-    txt_path = os.path.join(TRANSCRIPTS_DIR, filename + ".txt")
+    txt_path = os.path.join(TRANSCRIPT_DIR, filename + ".txt")
     if os.path.exists(txt_path):
         os.remove(txt_path)
 
@@ -214,7 +210,8 @@ async def get_uploaded_file(filename: str):
 
 @app.get("/static/{filename}")
 async def get_static_file(filename: str):
-    file_path = os.path.join("static", filename)
+    file_path = os.path.join(STATIC_DIR, filename)
     if os.path.exists(file_path):
         return FileResponse(file_path)
     return JSONResponse(status_code=404, content={"error": "File not found"})
+
