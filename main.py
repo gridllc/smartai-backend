@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, UploadFile, Depends, HTTPException, Header, Request
+from fastapi import FastAPI, UploadFile, Depends, HTTPException, Header, Request, Body
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,13 +9,14 @@ import shutil
 import subprocess
 import smtplib
 from email.message import EmailMessage
+from sqlalchemy.orm import Session
 
 from dotenv import load_dotenv
-from database import engine
+from database import engine, get_db
 from models import Base
 from upload_processor import transcribe_audio, get_openai_client
 from pinecone_sdk import search_similar_chunks
-from auth import get_current_user
+from auth import get_current_user, authenticate_user, register_user, create_access_token
 
 load_dotenv()
 
@@ -46,6 +47,10 @@ app.add_middleware(
 # --- Pydantic models ---
 class AskRequest(BaseModel):
     question: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
 
 # --- Root endpoint ---
 @app.get("/")
@@ -150,6 +155,18 @@ async def ask_question(request: AskRequest, user=Depends(get_current_user)):
     )
     answer = response.choices[0].message.content
     return {"answer": answer, "sources": relevant_chunks}
+
+# --- Auth Routes ---
+@app.post("/register")
+def register(payload: LoginRequest, db: Session = Depends(get_db)):
+    register_user(db, payload.email, payload.password)
+    return {"message": "User registered successfully"}
+
+@app.post("/login")
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = authenticate_user(db, payload.email, payload.password)
+    token = create_access_token(data={"sub": user.email})
+    return {"access_token": token, "token_type": "bearer"}
 
 # --- Static file routes ---
 @app.get("/uploads/{filename}")
