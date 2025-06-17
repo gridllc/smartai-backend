@@ -66,11 +66,12 @@ async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user)
             shutil.copyfileobj(file.file, buffer)
         print(f"📁 Saved file to {file_location}")
 
-        if file.filename.lower().endswith((".mp4", ".mov", ".mkv", ".avi")):
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        if file_ext in [".mp4", ".mov", ".mkv", ".avi"]:
             audio_path = file_location.rsplit(".", 1)[0] + "_audio.wav"
             try:
                 subprocess.run([
-                    "ffmpeg", "-i", file_location,
+                    "ffmpeg", "-y", "-i", file_location,
                     "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
                     audio_path
                 ], check=True)
