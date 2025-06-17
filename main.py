@@ -12,6 +12,7 @@ from pinecone_sdk import search_similar_chunks
 import smtplib
 from email.message import EmailMessage
 from dotenv import load_dotenv
+import subprocess
 
 load_dotenv()
 
@@ -145,6 +146,21 @@ async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_tok
     with open(file_location, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     print(f"📁 Saved file to {file_location}")
+
+    # ✅ Extract audio if it's a video file
+    if file.filename.lower().endswith((".mp4", ".mov", ".mkv", ".avi")):
+        audio_path = file_location.rsplit(".", 1)[0] + "_audio.wav"
+        try:
+            subprocess.run([
+                "ffmpeg", "-i", file_location,
+                "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
+                audio_path
+            ], check=True)
+            print(f"🎧 Extracted audio to {audio_path}")
+            file_location = audio_path
+        except subprocess.CalledProcessError as e:
+            print(f"❌ FFmpeg failed: {e}")
+            raise HTTPException(status_code=500, detail="Audio extraction failed")
 
     try:
         transcript = transcribe_audio(file_location)
@@ -283,7 +299,7 @@ async def get_static_file(filename: str):
         return FileResponse(file_path)
     return JSONResponse(status_code=404, content={"error": "File not found"})
 
-# ✅ Only initialize database if it doesn’t exist
+# ✅ Only initialize DB if it's missing
 if __name__ == "__main__":
     if not os.path.exists(DB_PATH):
         print("🔧 transcripts.db not found. Initializing fresh database.")
