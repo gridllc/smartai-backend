@@ -2,9 +2,18 @@ services:
   - type: web
     name: smartai-backend
     env: python
-    buildCommand: ""
+    buildCommand: |
+      apt-get update && apt-get install -y ffmpeg
     startCommand: uvicorn main:app --host 0.0.0.0 --port 10000
     envVars:
       - key: OPENAI_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_ENVIRONMENT
+        sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
         sync: false
     plan: free
