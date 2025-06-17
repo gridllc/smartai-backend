@@ -69,8 +69,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-init_db()
-
 class AskRequest(BaseModel):
     question: str
 
@@ -284,3 +282,9 @@ async def get_static_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path)
     return JSONResponse(status_code=404, content={"error": "File not found"})
+
+# ✅ Only initialize database if it doesn’t exist
+if __name__ == "__main__":
+    if not os.path.exists(DB_PATH):
+        print("🔧 transcripts.db not found. Initializing fresh database.")
+        init_db()
