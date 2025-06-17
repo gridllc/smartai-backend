@@ -9,7 +9,7 @@ from database import get_db
 from models import User
 
 # --- Config ---
-SECRET_KEY = os.getenv("SECRET_KEY", "mysecret")
+SECRET_KEY = os.getenv("SECRET_KEY", "mysecret")  # Use env var or fallback
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
