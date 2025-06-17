@@ -1,4 +1,5 @@
 import os
+import subprocess
 from uuid import uuid4
 from dotenv import load_dotenv
 from pinecone import Pinecone
@@ -64,7 +65,16 @@ def get_embedding_model():
             return response.data[0].embedding
     return Embedder()
 
-def transcribe_audio(audio_path):
+def extract_audio(input_path, output_path):
+    print(f"🎧 Extracting audio from {input_path} to {output_path}")
+    command = [
+        "ffmpeg", "-i", input_path, "-vn", "-acodec", "pcm_s16le", "-ar", "16000", output_path
+    ]
+    subprocess.run(command, check=True)
+
+def transcribe_audio(file_path):
+    audio_path = file_path.rsplit(".", 1)[0] + ".wav"
+    extract_audio(file_path, audio_path)
     model = whisper.load_model("base")
     result = model.transcribe(audio_path)
     return result["text"]
