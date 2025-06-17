@@ -73,6 +73,9 @@ def init_db():
     conn.commit()
     conn.close()
 
+print("🔧 Reinitializing database on startup.")
+init_db()
+
 class AskRequest(BaseModel):
     question: str
 
@@ -212,12 +215,16 @@ async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_tok
 
 @app.get("/api/history")
 async def history(user: str = Depends(verify_token)):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT filename, timestamp, summary FROM transcripts")
-    rows = c.fetchall()
-    conn.close()
-    return {"files": [{"filename": r[0], "timestamp": r[1], "summary": r[2]} for r in rows]}
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("SELECT filename, timestamp, summary FROM transcripts")
+        rows = c.fetchall()
+        conn.close()
+        return {"files": [{"filename": r[0], "timestamp": r[1], "summary": r[2]} for r in rows]}
+    except Exception as e:
+        print(f"❌ Error in /api/history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/transcript/{filename}")
 async def get_transcript(filename: str, user: str = Depends(verify_token)):
@@ -293,7 +300,3 @@ async def get_static_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path)
     return JSONResponse(status_code=404, content={"error": "File not found"})
-
-if __name__ == "__main__":
-    print("🔧 Reinitializing database on startup.")
-    init_db()
