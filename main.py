@@ -42,6 +42,10 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
+    c.execute("DROP TABLE IF EXISTS transcripts")
+    c.execute("DROP TABLE IF EXISTS users")
+    c.execute("DROP TABLE IF EXISTS questions")
+
     c.execute("""CREATE TABLE IF NOT EXISTS transcripts (
         filename TEXT PRIMARY KEY,
         transcript TEXT,
@@ -49,7 +53,6 @@ def init_db():
         summary TEXT
     )""")
 
-    c.execute("DROP TABLE IF EXISTS users")
     c.execute("""CREATE TABLE users (
         email TEXT PRIMARY KEY,
         password TEXT
@@ -142,59 +145,50 @@ def send_email_with_attachment(to_email, subject, body, file_path):
 
 @app.post("/upload-and-transcribe")
 async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_token)):
-    file_location = os.path.join(UPLOAD_DIR, file.filename)
-    with open(file_location, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    print(f"📁 Saved file to {file_location}")
-
-    # ✅ Extract audio if it's a video file
-    if file.filename.lower().endswith((".mp4", ".mov", ".mkv", ".avi")):
-        audio_path = file_location.rsplit(".", 1)[0] + "_audio.wav"
-        try:
-            subprocess.run([
-                "ffmpeg", "-i", file_location,
-                "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
-                audio_path
-            ], check=True)
-            print(f"🎧 Extracted audio to {audio_path}")
-            file_location = audio_path
-        except subprocess.CalledProcessError as e:
-            print(f"❌ FFmpeg failed: {e}")
-            raise HTTPException(status_code=500, detail="Audio extraction failed")
-
     try:
+        file_location = os.path.join(UPLOAD_DIR, file.filename)
+        with open(file_location, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        print(f"📁 Saved file to {file_location}")
+
+        if file.filename.lower().endswith((".mp4", ".mov", ".mkv", ".avi")):
+            audio_path = file_location.rsplit(".", 1)[0] + "_audio.wav"
+            try:
+                subprocess.run([
+                    "ffmpeg", "-i", file_location,
+                    "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
+                    audio_path
+                ], check=True)
+                print(f"🎧 Extracted audio to {audio_path}")
+                file_location = audio_path
+            except subprocess.CalledProcessError as e:
+                print(f"❌ FFmpeg error: {e}")
+                raise HTTPException(status_code=500, detail="Audio extraction failed")
+
         transcript = transcribe_audio(file_location)
         print(f"📝 Transcript result: {transcript[:100]}...")
-    except Exception as e:
-        print(f"❌ Transcription failed: {e}")
-        raise HTTPException(status_code=500, detail="Transcription failed")
 
-    try:
         txt_path = os.path.join(TRANSCRIPT_DIR, file.filename + ".txt")
         with open(txt_path, "w", encoding="utf-8") as f:
             f.write(transcript)
         print(f"✅ Transcript written to {txt_path}")
-    except Exception as e:
-        print(f"❌ Writing transcript failed: {e}")
-        raise HTTPException(status_code=500, detail="Saving transcript failed")
 
-    try:
-        client = get_openai_client()
-        summary_response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "Summarize this transcript in 2–3 sentences."},
-                {"role": "user", "content": transcript[:3000]}
-            ],
-            max_tokens=200,
-            temperature=0.5
-        )
-        summary = summary_response.choices[0].message.content.strip()
-    except Exception as e:
-        print(f"❌ GPT Summary failed: {e}")
-        summary = "(Summary unavailable)"
+        try:
+            client = get_openai_client()
+            summary_response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "Summarize this transcript in 2–3 sentences."},
+                    {"role": "user", "content": transcript[:3000]}
+                ],
+                max_tokens=200,
+                temperature=0.5
+            )
+            summary = summary_response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"❌ GPT Summary failed: {e}")
+            summary = "(Summary unavailable)"
 
-    try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute("REPLACE INTO transcripts (filename, transcript, timestamp, summary) VALUES (?, ?, ?, ?)",
@@ -202,18 +196,19 @@ async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_tok
         conn.commit()
         conn.close()
         print(f"📦 Transcript + summary saved to DB for {file.filename}")
+
+        send_email_with_attachment(
+            to_email=user,
+            subject="Your SmartAI Transcript",
+            body=f"Attached is your transcript for file: {file.filename}\n\nSummary:\n{summary}",
+            file_path=txt_path
+        )
+
+        return {"filename": file.filename, "transcript": transcript, "summary": summary}
+
     except Exception as e:
-        print(f"❌ DB insert failed: {e}")
-        raise HTTPException(status_code=500, detail="Database write failed")
-
-    send_email_with_attachment(
-        to_email=user,
-        subject="Your SmartAI Transcript",
-        body=f"Attached is your transcript for file: {file.filename}\n\nSummary:\n{summary}",
-        file_path=txt_path
-    )
-
-    return {"filename": file.filename, "transcript": transcript, "summary": summary}
+        print(f"❌ Top-level error: {e}")
+        raise HTTPException(status_code=500, detail="Upload failed")
 
 @app.get("/api/history")
 async def history(user: str = Depends(verify_token)):
@@ -300,6 +295,5 @@ async def get_static_file(filename: str):
     return JSONResponse(status_code=404, content={"error": "File not found"})
 
 if __name__ == "__main__":
-    if not os.path.exists(DB_PATH):
-        print("🔧 transcripts.db not found. Initializing fresh database.")
-        init_db()
+    print("🔧 Reinitializing database on startup.")
+    init_db()
