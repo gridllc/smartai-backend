@@ -44,6 +44,7 @@ PyJWT==2.8.0
 propcache==0.3.2
 protobuf==5.29.5
 protoc-gen-openapiv2==0.0.1
+psycopg2-binary
 pydantic==2.11.5
 pydantic_core==2.33.2
 python-dateutil==2.9.0.post0
