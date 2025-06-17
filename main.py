@@ -116,7 +116,7 @@ async def register(payload: LoginRequest):
 
 @app.get("/")
 async def serve_index():
-    return FileResponse("static/index.html")
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 def send_email_with_attachment(to_email, subject, body, file_path):
     try:
@@ -299,7 +299,6 @@ async def get_static_file(filename: str):
         return FileResponse(file_path)
     return JSONResponse(status_code=404, content={"error": "File not found"})
 
-# ✅ Only initialize DB if it's missing
 if __name__ == "__main__":
     if not os.path.exists(DB_PATH):
         print("🔧 transcripts.db not found. Initializing fresh database.")
