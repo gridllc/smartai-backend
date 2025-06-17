@@ -154,7 +154,9 @@ async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_tok
             shutil.copyfileobj(file.file, buffer)
         print(f"📁 Saved file to {file_location}")
 
-        if file.filename.lower().endswith((".mp4", ".mov", ".mkv", ".avi")):
+        file_ext = os.path.splitext(file.filename)[1].lower()
+
+        if file_ext in [".mp4", ".mov", ".mkv", ".avi"]:
             audio_path = file_location.rsplit(".", 1)[0] + "_audio.wav"
             try:
                 subprocess.run([
@@ -167,6 +169,8 @@ async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_tok
             except subprocess.CalledProcessError as e:
                 print(f"❌ FFmpeg error: {e}")
                 raise HTTPException(status_code=500, detail="Audio extraction failed")
+        else:
+            print(f"🎧 Using uploaded audio file directly: {file_location}")
 
         transcript = transcribe_audio(file_location)
         print(f"📝 Transcript result: {transcript[:100]}...")
