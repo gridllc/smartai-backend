@@ -15,6 +15,7 @@ from database import engine
 from models import Base
 from upload_processor import transcribe_audio, get_openai_client
 from pinecone_sdk import search_similar_chunks
+from auth import get_current_user
 
 load_dotenv()
 
@@ -46,16 +47,6 @@ app.add_middleware(
 class AskRequest(BaseModel):
     question: str
 
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-# --- Token Verification (Temporary: simple email check) ---
-def verify_token(authorization: str = Header(...)):
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid token format")
-    return authorization.replace("Bearer ", "")
-
 # --- Root endpoint ---
 @app.get("/")
 def read_root():
@@ -63,7 +54,7 @@ def read_root():
 
 # --- Upload and Transcribe ---
 @app.post("/upload-and-transcribe")
-async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_token)):
+async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user)):
     try:
         file_location = os.path.join(UPLOAD_DIR, file.filename)
         with open(file_location, "wb") as buffer:
@@ -104,7 +95,7 @@ async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_tok
         summary = summary_response.choices[0].message.content.strip()
 
         send_email_with_attachment(
-            to_email=user,
+            to_email=user.email,
             subject="Your SmartAI Transcript",
             body=f"Attached is your transcript for file: {file.filename}\n\nSummary:\n{summary}",
             file_path=txt_path
@@ -141,7 +132,7 @@ def send_email_with_attachment(to_email, subject, body, file_path):
 
 # --- Ask a Question ---
 @app.post("/ask")
-async def ask_question(request: AskRequest, user: str = Depends(verify_token)):
+async def ask_question(request: AskRequest, user=Depends(get_current_user)):
     question = request.question
     relevant_chunks = search_similar_chunks(question, top_k=5)
     context_block = "\n\n".join([chunk["text"] for chunk in relevant_chunks])
