@@ -64,7 +64,7 @@ def register_user(db: Session, email: str, password: str):
         raise HTTPException(status_code=409, detail="User already exists")
 
     hashed_pw = get_password_hash(password)
-    user = User(email=email, password_hash=hashed_pw)
+    user = User(email=email, password_hash=hashed_pw)  # FIXED THIS LINE
     db.add(user)
     db.commit()
     db.refresh(user)
