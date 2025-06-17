@@ -2,7 +2,7 @@
 FROM python:3.10-slim
 
 # Install ffmpeg for audio extraction
-RUN apt-get update && apt-get install -y ffmpeg
+RUN apt-get update && apt-get install -y ffmpeg git
 
 # Set working directory inside the container
 WORKDIR /app
