@@ -11,9 +11,12 @@ WORKDIR /app
 # Copy project files
 COPY . .
 
-# Install dependencies
+# Install Python dependencies
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
+
+# Force rebuild marker
+# Rebuild triggered to ensure psycopg2-binary is installed properly
 
 # Expose port used by FastAPI
 EXPOSE 10000
