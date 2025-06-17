@@ -5,197 +5,106 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SmartAI Audio Transcriber</title>
   <link rel="stylesheet" href="/static/style.css" />
-  <style>
-    .spinner {
-      display: none;
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #333;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      animation: spin 1s linear infinite;
-      margin-left: 10px;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .history-item {
-      margin-bottom: 10px;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-    }
-  </style>
 </head>
 <body>
-  <div id="loginBox">
-    <h2>Login</h2>
-    <input type="email" id="loginEmail" placeholder="Email" />
-    <input type="password" id="loginPassword" placeholder="Password" />
-    <button onclick="login()">Login</button>
+  <div id="login-screen" class="overlay">
+    <div class="login-form">
+      <h2>Login to SmartAI</h2>
+      <input type="email" id="login-email" placeholder="Email" required />
+      <input type="password" id="login-password" placeholder="Password" required />
+      <button onclick="handleLogin()">Login</button>
+      <p id="login-error" class="error"></p>
+    </div>
   </div>
 
-  <div id="appUI" style="display:none">
-    <button onclick="logout()" style="float:right">Logout</button>
-    <h1 id="welcomeHeader">SmartAI Audio Transcriber</h1>
+  <div id="app" style="display: none">
+    <h1>SmartAI Audio Transcriber</h1>
 
-    <input type="file" id="fileInput" />
-    <button onclick="uploadFile()">Upload and Transcribe</button>
-    <div id="spinner" class="spinner"></div>
+    <form id="upload-form">
+      <input type="file" id="audio-file" name="file" accept="audio/*,video/*" required />
+      <button type="submit">Upload & Transcribe</button>
+    </form>
 
-    <input type="text" id="searchInput" placeholder="Search transcripts..." oninput="filterHistory()" style="margin-top:12px; width:100%;" />
-    <div id="transcriptHistory"></div>
+    <div id="transcript-result" style="display: none">
+      <h2>Transcript</h2>
+      <pre id="transcript-text"></pre>
+      <h3>Summary</h3>
+      <p id="summary-text"></p>
+    </div>
 
-    <h2>Ask a Question</h2>
-    <input type="text" id="questionInput" placeholder="Ask..." />
-    <button onclick="askQuestion()">Ask</button>
-    <div id="answerText"></div>
-    <div id="sourcesBox"></div>
+    <h2>Transcript History</h2>
+    <ul id="transcript-history"></ul>
   </div>
 
   <script>
-    function login() {
-      const email = document.getElementById("loginEmail").value;
-      const password = document.getElementById("loginPassword").value;
-      fetch("/login", {
+    let accessToken = localStorage.getItem("accessToken");
+
+    async function handleLogin() {
+      const email = document.getElementById("login-email").value;
+      const password = document.getElementById("login-password").value;
+
+      const response = await fetch("/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password })
-      })
-      .then(res => res.json())
-      .then(data => {
-        localStorage.setItem("token", data.token);
-        document.getElementById("loginBox").style.display = "none";
-        document.getElementById("appUI").style.display = "block";
-        document.getElementById("welcomeHeader").innerText = `Welcome, ${data.token}`;
-        loadHistory();
-      })
-      .catch(() => alert("Login failed"));
+      });
+
+      if (!response.ok) {
+        document.getElementById("login-error").innerText = "Invalid login credentials.";
+        return;
+      }
+
+      const data = await response.json();
+      localStorage.setItem("accessToken", data.access_token);
+      document.getElementById("login-screen").style.display = "none";
+      document.getElementById("app").style.display = "block";
+      accessToken = data.access_token;
+      loadTranscriptHistory();
     }
 
-    function logout() {
-      localStorage.removeItem("token");
-      location.reload();
-    }
-
-    async function uploadFile() {
-      const fileInput = document.getElementById("fileInput");
-      const file = fileInput.files[0];
-      const spinner = document.getElementById("spinner");
-
-      if (!file) return alert("Please select a file to upload.");
-
+    document.getElementById("upload-form").addEventListener("submit", async function(e) {
+      e.preventDefault();
+      const fileInput = document.getElementById("audio-file");
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", fileInput.files[0]);
 
-      try {
-        spinner.style.display = "inline-block";
-        const res = await fetch("/upload-and-transcribe", {
-          method: "POST",
-          headers: { "Authorization": "Bearer " + localStorage.getItem("token") },
-          body: formData
-        });
-        spinner.style.display = "none";
-        const data = await res.json();
-        if (data.filename) {
-          loadHistory(data.filename); // auto-preview new one
-        }
-      } catch (err) {
-        spinner.style.display = "none";
-        alert("Upload failed");
-      }
-    }
-
-    async function loadHistory(highlightFilename) {
-      const res = await fetch("/api/history", {
-        headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
-      });
-      const data = await res.json();
-      const container = document.getElementById("transcriptHistory");
-      container.innerHTML = "<h3>Transcript History</h3>";
-
-      for (const file of data.files) {
-        const { filename, summary } = file;
-        const div = document.createElement("div");
-        div.className = "history-item";
-        div.id = "item-" + filename;
-
-        const title = document.createElement("strong");
-        title.innerText = filename + "\n";
-
-        const summaryBox = document.createElement("p");
-        summaryBox.innerText = summary || "No summary available.";
-
-        const previewBtn = document.createElement("button");
-        previewBtn.innerText = "Preview";
-
-        const previewBox = document.createElement("div");
-        previewBox.style.display = "none";
-
-        previewBtn.onclick = async () => {
-          const res = await fetch(`/api/transcript/${filename}`, {
-            headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
-          });
-          const data = await res.json();
-          previewBox.innerText = data.transcript;
-          previewBox.style.display = "block";
-        };
-
-        const downloadBtn = document.createElement("button");
-        downloadBtn.innerText = "Download";
-        downloadBtn.onclick = () => window.location.href = `/api/download/${filename}`;
-
-        const deleteBtn = document.createElement("button");
-        deleteBtn.innerText = "Delete";
-        deleteBtn.onclick = async () => {
-          await fetch(`/api/delete/${filename}`, {
-            method: "DELETE",
-            headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
-          });
-          loadHistory();
-        };
-
-        div.append(title, summaryBox, previewBtn, downloadBtn, deleteBtn, previewBox);
-        container.appendChild(div);
-
-        if (highlightFilename === filename) {
-          previewBtn.click();
-          setTimeout(() => document.getElementById("item-" + filename).scrollIntoView({ behavior: 'smooth' }), 300);
-        }
-      }
-    }
-
-    function filterHistory() {
-      const query = document.getElementById("searchInput").value.toLowerCase();
-      document.querySelectorAll(".history-item").forEach(entry => {
-        entry.style.display = entry.textContent.toLowerCase().includes(query) ? "block" : "none";
-      });
-    }
-
-    async function askQuestion() {
-      const question = document.getElementById("questionInput").value;
-      const res = await fetch("/ask", {
+      const response = await fetch("/upload-and-transcribe", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + localStorage.getItem("token")
+          Authorization: `Bearer ${accessToken}`
         },
-        body: JSON.stringify({ question })
+        body: formData
       });
-      const data = await res.json();
-      document.getElementById("answerText").innerText = data.answer;
+
+      const result = await response.json();
+      document.getElementById("transcript-text").innerText = result.transcript;
+      document.getElementById("summary-text").innerText = result.summary;
+      document.getElementById("transcript-result").style.display = "block";
+      loadTranscriptHistory();
+    });
+
+    async function loadTranscriptHistory() {
+      const response = await fetch("/api/history", {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      const data = await response.json();
+      const list = document.getElementById("transcript-history");
+      list.innerHTML = "";
+      data.files.forEach(item => {
+        const li = document.createElement("li");
+        li.textContent = `${item.filename} - ${new Date(item.timestamp).toLocaleString()}`;
+        list.appendChild(li);
+      });
     }
 
-    window.onload = () => {
-      const token = localStorage.getItem("token");
-      if (token) {
-        document.getElementById("loginBox").style.display = "none";
-        document.getElementById("appUI").style.display = "block";
-        document.getElementById("welcomeHeader").innerText = `Welcome, ${token}`;
-        loadHistory();
-      }
-    };
+    // Auto show login or app
+    if (!accessToken) {
+      document.getElementById("login-screen").style.display = "block";
+    } else {
+      document.getElementById("app").style.display = "block";
+      document.getElementById("login-screen").style.display = "none";
+      loadTranscriptHistory();
+    }
   </script>
 </body>
 </html>
