@@ -1,17 +1,18 @@
-import aiosqlite
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+import os
 
-DB_FILE = "transcripts.db"
+# Use environment variable or hardcoded fallback
+DATABASE_URL = os.getenv("DATABASE_URL") or "postgresql://smartai_backend_user:Ie2XE5b9cNmRqaKt7woVaYPYaomAE602@dpg-d18pljbuibrs73dtdhq0-a/smartai_backend"
 
-CREATE_TABLE_QUERY = """
-CREATE TABLE IF NOT EXISTS transcripts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    filename TEXT NOT NULL,
-    transcript TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-"""
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
-async def init_db():
-    async with aiosqlite.connect(DB_FILE) as db:
-        await db.execute(CREATE_TABLE_QUERY)
-        await db.commit()
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
