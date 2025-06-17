@@ -38,7 +38,6 @@ openai==1.86.0
 openai-whisper @ git+https://github.com/openai/whisper.git@dd985ac4b90cafeef8712f2998d62c59c3e62d22
 packaging==24.2
 pinecone==7.0.2
-pinecone-client
 pinecone-plugin-assistant==1.7.0
 pinecone-plugin-interface==0.0.7
 PyJWT==2.8.0

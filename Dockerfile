@@ -1,22 +1,27 @@
-# Use official Python slim image
+# Use official lightweight Python image
 FROM python:3.10-slim
 
-# Install ffmpeg for audio extraction
-RUN apt-get update && apt-get install -y ffmpeg git
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-# Set working directory inside the container
+# Install system dependencies (git and ffmpeg needed)
+RUN apt-get update && \
+    apt-get install -y git ffmpeg gcc && \
+    apt-get clean
+
+# Set work directory
 WORKDIR /app
 
-# Copy everything from host to container
+# Copy project files
 COPY . .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
+# Install dependencies
+RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Expose the port your FastAPI app will use
+# Expose the port used by uvicorn
 EXPOSE 10000
 
-# Start the FastAPI app
+# Run the application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
-
