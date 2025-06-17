@@ -55,7 +55,7 @@ class LoginRequest(BaseModel):
 # --- Root endpoint ---
 @app.get("/")
 def read_root():
-    return {"message": "SmartAI backend is running."}
+    return FileResponse("static/index.html")
 
 # --- Upload and Transcribe ---
 @app.post("/upload-and-transcribe")

@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timedelta
 from typing import Optional
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from passlib.context import CryptContext
@@ -19,42 +20,20 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-# --- Password Hashing ---
-def verify_password(plain_password, hashed_password):
+# --- Utility Functions ---
+def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
-def get_password_hash(password):
+def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
-# --- Token Creation ---
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire, "sub": data.get("sub")})
+    to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-# --- User Registration ---
-def register_user(db: Session, email: str, password: str):
-    if db.query(User).filter(User.email == email).first():
-        raise HTTPException(status_code=409, detail="Email already registered")
-    user = User(email=email, password_hash=get_password_hash(password))
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
-
-# --- User Authentication ---
-def authenticate_user(db: Session, email: str, password: str):
-    user = db.query(User).filter(User.email == email).first()
-    if not user or not verify_password(password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user
-
-# --- Current User Dependency ---
+# --- Auth Dependency ---
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
@@ -74,6 +53,25 @@ async def get_current_user(
         raise credentials_exception
 
     user = db.query(User).filter(User.email == email).first()
-    if not user:
+    if user is None:
         raise credentials_exception
+
+    return user
+
+# --- Registration/Login ---
+def register_user(db: Session, email: str, password: str):
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(status_code=409, detail="User already exists")
+
+    hashed_pw = get_password_hash(password)
+    user = User(email=email, password_hash=hashed_pw)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+def authenticate_user(db: Session, email: str, password: str):
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not verify_password(password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     return user

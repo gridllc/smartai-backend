@@ -25,6 +25,8 @@
       <button type="submit">Upload & Transcribe</button>
     </form>
 
+    <div id="loading-spinner" class="spinner" style="display: none;"></div>
+
     <div id="transcript-result" style="display: none">
       <h2>Transcript</h2>
       <pre id="transcript-text"></pre>
@@ -68,19 +70,27 @@
       const formData = new FormData();
       formData.append("file", fileInput.files[0]);
 
-      const response = await fetch("/upload-and-transcribe", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: formData
-      });
+      document.getElementById("loading-spinner").style.display = "block";
 
-      const result = await response.json();
-      document.getElementById("transcript-text").innerText = result.transcript;
-      document.getElementById("summary-text").innerText = result.summary;
-      document.getElementById("transcript-result").style.display = "block";
-      loadTranscriptHistory();
+      try {
+        const response = await fetch("/upload-and-transcribe", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          },
+          body: formData
+        });
+
+        const result = await response.json();
+        document.getElementById("transcript-text").innerText = result.transcript;
+        document.getElementById("summary-text").innerText = result.summary;
+        document.getElementById("transcript-result").style.display = "block";
+        loadTranscriptHistory();
+      } catch (err) {
+        alert("Error uploading or transcribing file.");
+      } finally {
+        document.getElementById("loading-spinner").style.display = "none";
+      }
     });
 
     async function loadTranscriptHistory() {
@@ -97,7 +107,6 @@
       });
     }
 
-    // Auto show login or app
     if (!accessToken) {
       document.getElementById("login-screen").style.display = "block";
     } else {
