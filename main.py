@@ -157,10 +157,11 @@ async def upload_and_transcribe(file: UploadFile, user: str = Depends(verify_tok
         file_ext = os.path.splitext(file.filename)[1].lower()
 
         if file_ext in [".mp4", ".mov", ".mkv", ".avi"]:
-            audio_path = file_location.rsplit(".", 1)[0] + "_audio.wav"
+            original_video_path = file_location
+            audio_path = original_video_path.rsplit(".", 1)[0] + "_audio.wav"
             try:
                 subprocess.run([
-                    "ffmpeg", "-i", file_location,
+                    "ffmpeg", "-y", "-i", original_video_path,
                     "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
                     audio_path
                 ], check=True)
