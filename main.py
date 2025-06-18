@@ -169,6 +169,16 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     token = create_access_token(data={"sub": user.email})
     return {"access_token": token, "token_type": "bearer"}
 
+# --- Transcript History ---
+@app.get("/api/history")
+async def history(user=Depends(get_current_user)):
+    filenames = []
+    if os.path.exists(TRANSCRIPT_DIR):
+        for name in os.listdir(TRANSCRIPT_DIR):
+            if name.endswith(".txt"):
+                filenames.append(name.replace(".txt", ""))
+    return {"files": filenames}
+
 # --- Static file routes ---
 @app.get("/uploads/{filename}")
 async def get_uploaded_file(filename: str):
