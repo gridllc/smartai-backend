@@ -7,3 +7,6 @@ __pycache__/
 uploads/
 transcripts/
 api.txt
+venv/
+__pycache__/
+*.pyc
