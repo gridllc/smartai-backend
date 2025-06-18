@@ -10,3 +10,4 @@ api.txt
 venv/
 __pycache__/
 *.pyc
+venv310/
