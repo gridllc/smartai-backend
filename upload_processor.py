@@ -66,17 +66,27 @@ def get_embedding_model():
     return Embedder()
 
 def extract_audio(input_path, output_path):
-    print(f"🎧 Extracting audio from {input_path} to {output_path}")
+    print(f"🎷 Extracting audio from {input_path} to {output_path}")
     command = [
-        "ffmpeg", "-i", input_path, "-vn", "-acodec", "pcm_s16le", "-ar", "16000", output_path
+        "ffmpeg", "-y", "-i", input_path, "-vn",
+        "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", output_path
     ]
-    subprocess.run(command, check=True)
+    try:
+        subprocess.run(command, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ FFmpeg error during extract_audio: {e.stderr}")
+        raise
 
 def transcribe_audio(file_path):
-    audio_path = file_path.rsplit(".", 1)[0] + ".wav"
-    extract_audio(file_path, audio_path)
+    print(f"🎧 Transcribing audio from {file_path}")
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Audio file not found: {file_path}")
+
     model = whisper.load_model("base")
-    result = model.transcribe(audio_path)
+    result = model.transcribe(file_path)
+    print(f"✅ Transcription completed for {os.path.basename(file_path)}")
+
     return result["text"]
 
 def get_openai_client():
