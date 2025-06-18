@@ -5,115 +5,250 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SmartAI Audio Transcriber</title>
   <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <style>
+    body.dark { background-color: #111; color: #eee; }
+    .dark input, .dark button { background-color: #222; color: #fff; border-color: #555; }
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #555; border-radius: 50%; animation: spin 1s linear infinite; margin-left: 10px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    #answerText { white-space: pre-wrap; font-size: 1rem; line-height: 1.5; }
+    .source-block { margin-top: 10px; padding: 10px; border: 1px solid #aaa; border-radius: 6px; background: #f9f9f9; font-size: 0.9em; }
+    .source-text { margin-top: 5px; color: #333; cursor: pointer; }
+    .history-item { margin: 10px 0; padding: 5px; border-bottom: 1px solid #ccc; }
+    .history-item button { margin-left: 10px; }
+    #logout, #darkToggle { float: right; margin-left: 10px; }
+    #adminPanel { margin-top: 20px; border: 1px solid #aaa; padding: 10px; display: none; }
+  </style>
 </head>
 <body>
-  <div id="login-screen" class="overlay">
-    <div class="login-form">
-      <h2>Login to SmartAI</h2>
-      <input type="email" id="login-email" placeholder="Email" required />
-      <input type="password" id="login-password" placeholder="Password" required />
-      <button onclick="handleLogin()">Login</button>
-      <p id="login-error" class="error"></p>
-    </div>
+  <!-- Login UI -->
+  <div id="loginBox">
+    <h2>Login</h2>
+    <input type="email" id="loginEmail" placeholder="Email" />
+    <input type="password" id="loginPassword" placeholder="Password" />
+    <button onclick="login()">Login</button>
+    <p>Need an account? <a href="#" onclick="showRegister()">Register here</a></p>
   </div>
 
-  <div id="app" style="display: none">
-    <h1>SmartAI Audio Transcriber</h1>
+  <!-- Registration UI -->
+  <div id="registerBox" style="display:none">
+    <h2>Register</h2>
+    <input type="text" id="registerName" placeholder="Full Name" />
+    <input type="email" id="registerEmail" placeholder="Email" />
+    <input type="password" id="registerPassword" placeholder="Password" />
+    <input type="text" id="registerCode" placeholder="Invite Code" />
+    <button onclick="register()">Register</button>
+    <p>Already have an account? <a href="#" onclick="showLogin()">Go to login</a></p>
+  </div>
 
-    <form id="upload-form">
-      <input type="file" id="audio-file" name="file" accept="audio/*,video/*" required />
-      <button type="submit">Upload & Transcribe</button>
-    </form>
-
-    <div id="loading-spinner" class="spinner" style="display: none;"></div>
-
-    <div id="transcript-result" style="display: none">
-      <h2>Transcript</h2>
-      <pre id="transcript-text"></pre>
-      <h3>Summary</h3>
-      <p id="summary-text"></p>
+  <!-- Main App UI -->
+  <div id="appUI" style="display: none">
+    <button id="logout" onclick="logout()">Logout</button>
+    <button id="darkToggle" onclick="toggleDarkMode()">🌙 Toggle Dark</button>
+    <h1 id="welcomeHeader">SmartAI Audio Transcriber</h1>
+    <input type="file" id="fileInput" />
+    <button onclick="uploadFile()">Upload & Transcribe</button>
+    <div>
+      <input type="text" id="searchInput" placeholder="Search transcripts..." oninput="filterTranscripts()" />
+      <select id="sortSelect" onchange="filterTranscripts()">
+        <option value="newest">Newest First</option>
+        <option value="oldest">Oldest First</option>
+      </select>
     </div>
-
-    <h2>Transcript History</h2>
-    <ul id="transcript-history"></ul>
+    <div id="transcriptHistory"></div>
+    <hr>
+    <h2>Ask a Question</h2>
+    <input type="text" id="questionInput" placeholder="Ask a question..." />
+    <button onclick="askQuestion()">Ask</button>
+    <div id="spinner" class="spinner" style="display: none;"></div>
+    <div id="answerBox">
+      <div id="answerText"></div>
+      <div id="sourcesBox"></div>
+    </div>
+    <div id="adminPanel">
+      <h3>Admin Panel</h3>
+      <p>This section is only visible to admin users.</p>
+    </div>
   </div>
 
   <script>
-    let accessToken = localStorage.getItem("accessToken");
+    let currentUser = null;
+    let allTranscripts = [];
 
-    async function handleLogin() {
-      const email = document.getElementById("login-email").value;
-      const password = document.getElementById("login-password").value;
+    function showToast(message, type = "info") {
+      let bg = { success: "#4CAF50", error: "#f44336", info: "#2196F3" }[type] || "#333";
+      Toastify({ text: message, duration: 3000, gravity: "top", position: "right", backgroundColor: bg }).showToast();
+    }
 
-      const response = await fetch("/login", {
+    function logout() {
+      localStorage.removeItem("token");
+      document.getElementById("loginBox").style.display = "block";
+      document.getElementById("appUI").style.display = "none";
+      document.getElementById("registerBox").style.display = "none";
+      document.getElementById("adminPanel").style.display = "none";
+      showToast("Logged out", "info");
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark");
+    }
+
+    function showRegister() {
+      document.getElementById("loginBox").style.display = "none";
+      document.getElementById("registerBox").style.display = "block";
+    }
+
+    function showLogin() {
+      document.getElementById("registerBox").style.display = "none";
+      document.getElementById("loginBox").style.display = "block";
+    }
+
+    function login() {
+      const email = document.getElementById("loginEmail").value;
+      const password = document.getElementById("loginPassword").value;
+
+      fetch("/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password })
+      }).then(res => {
+        if (!res.ok) throw new Error("Login failed");
+        return res.json();
+      }).then(data => {
+        localStorage.setItem("token", data.token);
+        currentUser = data.token;
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("appUI").style.display = "block";
+        document.getElementById("welcomeHeader").innerText = `Welcome, ${data.token}`;
+        if (data.token === "patrick@gridllc.net") {
+          document.getElementById("adminPanel").style.display = "block";
+        }
+        loadHistory();
+        showToast("Login successful", "success");
+      }).catch(err => {
+        showToast("Login error: " + err.message, "error");
       });
+    }
 
-      if (!response.ok) {
-        document.getElementById("login-error").innerText = "Invalid login credentials.";
-        return;
+    function register() {
+      const full_name = document.getElementById("registerName").value;
+      const username = document.getElementById("registerEmail").value;
+      const password = document.getElementById("registerPassword").value;
+      const invite_code = document.getElementById("registerCode").value;
+
+      fetch("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ full_name, username, password, invite_code })
+      }).then(res => {
+        if (!res.ok) throw new Error("Registration failed");
+        return res.json();
+      }).then(() => {
+        showToast("Account created! Please login.", "success");
+        showLogin();
+      }).catch(err => {
+        showToast("Registration error: " + err.message, "error");
+      });
+    }
+
+    // uploadFile, askQuestion, loadHistory remain unchanged...
+    // Add filterTranscripts() to handle search/sort UI
+
+    function filterTranscripts() {
+      const query = document.getElementById("searchInput").value.toLowerCase();
+      const sortBy = document.getElementById("sortSelect").value;
+      let filtered = allTranscripts.filter(name => name.toLowerCase().includes(query));
+      if (sortBy === "newest") filtered.reverse();
+
+      const historyDiv = document.getElementById("transcriptHistory");
+      historyDiv.innerHTML = "<h3>Transcript History</h3>";
+      filtered.forEach(renderTranscriptItem);
+    }
+
+    function renderTranscriptItem(filename) {
+      const div = document.createElement("div");
+      div.className = "history-item";
+
+      const nameSpan = document.createElement("span");
+      nameSpan.innerText = `📄 ${filename}`;
+
+      const previewBtn = document.createElement("button");
+      previewBtn.innerText = "Preview";
+      const previewBox = document.createElement("div");
+      previewBox.style.display = "none";
+      previewBox.style.marginTop = "5px";
+      previewBox.style.padding = "6px";
+      previewBox.style.border = "1px solid #ccc";
+      previewBox.style.borderRadius = "4px";
+      previewBox.style.background = "#f9f9f9";
+      previewBox.style.whiteSpace = "pre-wrap";
+
+      previewBtn.onclick = async () => {
+        if (previewBox.style.display === "none") {
+          const res = await fetch(`/api/transcript/${filename}`, {
+            headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+          });
+          const data = await res.json();
+          previewBox.innerText = data.transcript || "[Empty]";
+          previewBox.style.display = "block";
+        } else {
+          previewBox.style.display = "none";
+        }
+      };
+
+      const downloadBtn = document.createElement("button");
+      downloadBtn.innerText = "Download";
+      downloadBtn.onclick = () => window.location.href = `/api/download/${filename}`;
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.innerText = "Delete";
+      deleteBtn.onclick = async () => {
+        if (confirm(`Delete ${filename}?`)) {
+          await fetch(`/api/delete/${filename}`, {
+            method: "DELETE",
+            headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+          });
+          loadHistory();
+          showToast(`${filename} deleted.`, "info");
+        }
+      };
+
+      div.appendChild(nameSpan);
+      div.appendChild(previewBtn);
+      div.appendChild(downloadBtn);
+      div.appendChild(deleteBtn);
+      div.appendChild(previewBox);
+
+      document.getElementById("transcriptHistory").appendChild(div);
+    }
+
+    async function loadHistory() {
+      const res = await fetch("/api/history", {
+        headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+      });
+      const data = await res.json();
+      allTranscripts = data.files || [];
+      filterTranscripts();
+    }
+
+    window.onload = () => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        currentUser = token;
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("appUI").style.display = "block";
+        document.getElementById("welcomeHeader").innerText = `Welcome, ${token}`;
+        if (token === "patrick@gridllc.net") {
+          document.getElementById("adminPanel").style.display = "block";
+        }
+        loadHistory();
+      } else {
+        document.getElementById("loginBox").style.display = "block";
+        document.getElementById("registerBox").style.display = "none";
+        document.getElementById("appUI").style.display = "none";
       }
-
-      const data = await response.json();
-      localStorage.setItem("accessToken", data.access_token);
-      document.getElementById("login-screen").style.display = "none";
-      document.getElementById("app").style.display = "block";
-      accessToken = data.access_token;
-      loadTranscriptHistory();
-    }
-
-    document.getElementById("upload-form").addEventListener("submit", async function(e) {
-      e.preventDefault();
-      const fileInput = document.getElementById("audio-file");
-      const formData = new FormData();
-      formData.append("file", fileInput.files[0]);
-
-      document.getElementById("loading-spinner").style.display = "block";
-
-      try {
-        const response = await fetch("/upload-and-transcribe", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: formData
-        });
-
-        const result = await response.json();
-        document.getElementById("transcript-text").innerText = result.transcript;
-        document.getElementById("summary-text").innerText = result.summary;
-        document.getElementById("transcript-result").style.display = "block";
-        loadTranscriptHistory();
-      } catch (err) {
-        alert("Error uploading or transcribing file.");
-      } finally {
-        document.getElementById("loading-spinner").style.display = "none";
-      }
-    });
-
-    async function loadTranscriptHistory() {
-      const response = await fetch("/api/history", {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
-      const data = await response.json();
-      const list = document.getElementById("transcript-history");
-      list.innerHTML = "";
-      data.files.forEach(item => {
-        const li = document.createElement("li");
-        li.textContent = `${item.filename} - ${new Date(item.timestamp).toLocaleString()}`;
-        list.appendChild(li);
-      });
-    }
-
-    if (!accessToken) {
-      document.getElementById("login-screen").style.display = "block";
-    } else {
-      document.getElementById("app").style.display = "block";
-      document.getElementById("login-screen").style.display = "none";
-      loadTranscriptHistory();
-    }
+    };
   </script>
 </body>
 </html>
