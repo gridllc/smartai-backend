@@ -1,16 +1,14 @@
 import os
-from fastapi import FastAPI, UploadFile, Depends, HTTPException, Header, Request, Body
+from fastapi import FastAPI, UploadFile, Depends, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from datetime import datetime
 import shutil
 import subprocess
 import smtplib
 from email.message import EmailMessage
 from sqlalchemy.orm import Session
-
 from dotenv import load_dotenv
 from database import engine, get_db
 from models import Base
@@ -20,12 +18,9 @@ from auth import get_current_user, authenticate_user, register_user, create_acce
 
 load_dotenv()
 
-# --- Init app and DB ---
 app = FastAPI()
 Base.metadata.create_all(bind=engine)
-print("✅ Tables created in PostgreSQL")
 
-# --- Directories ---
 UPLOAD_DIR = "uploads"
 TRANSCRIPT_DIR = "transcripts"
 STATIC_DIR = "static"
@@ -44,7 +39,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Pydantic models ---
 class AskRequest(BaseModel):
     question: str
 
@@ -52,12 +46,10 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
-# --- Root endpoint ---
 @app.get("/")
 def read_root():
     return FileResponse("static/index.html")
 
-# --- Upload and Transcribe ---
 @app.post("/upload-and-transcribe")
 async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user)):
     try:
@@ -67,8 +59,6 @@ async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user)
         print(f"📁 Saved file to {file_location}")
 
         file_ext = os.path.splitext(file.filename)[1].lower()
-
-        # If video, convert to .wav
         if file_ext in [".mp4", ".mov", ".mkv", ".avi"]:
             audio_path = file_location.rsplit(".", 1)[0] + "_converted.wav"
             try:
@@ -78,7 +68,7 @@ async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user)
                     audio_path
                 ], check=True)
                 print(f"🎧 Extracted audio to {audio_path}")
-                file_location = audio_path  # only update file_location if converted
+                file_location = audio_path
             except subprocess.CalledProcessError as e:
                 print(f"❌ FFmpeg error: {e}")
                 raise HTTPException(status_code=500, detail="Audio extraction failed")
@@ -115,7 +105,6 @@ async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user)
         print(f"❌ Top-level error: {e}")
         raise HTTPException(status_code=500, detail="Upload failed")
 
-# --- Email Utility ---
 def send_email_with_attachment(to_email, subject, body, file_path):
     try:
         msg = EmailMessage()
@@ -138,7 +127,6 @@ def send_email_with_attachment(to_email, subject, body, file_path):
     except Exception as e:
         print(f"❌ Email failed: {e}")
 
-# --- Ask a Question ---
 @app.post("/ask")
 async def ask_question(request: AskRequest, user=Depends(get_current_user)):
     question = request.question
@@ -159,7 +147,6 @@ async def ask_question(request: AskRequest, user=Depends(get_current_user)):
     answer = response.choices[0].message.content
     return {"answer": answer, "sources": relevant_chunks}
 
-# --- Auth Routes ---
 @app.post("/register")
 def register(payload: LoginRequest, db: Session = Depends(get_db)):
     register_user(db, payload.email, payload.password)
@@ -171,7 +158,6 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     token = create_access_token(data={"sub": user.email})
     return {"access_token": token, "token_type": "bearer"}
 
-# --- Transcript History ---
 @app.get("/api/history")
 async def history(user=Depends(get_current_user)):
     filenames = []
@@ -181,7 +167,6 @@ async def history(user=Depends(get_current_user)):
                 filenames.append(name.replace(".txt", ""))
     return {"files": filenames}
 
-# --- Static file routes ---
 @app.get("/uploads/{filename}")
 async def get_uploaded_file(filename: str):
     file_path = os.path.join(UPLOAD_DIR, filename)
@@ -195,3 +180,4 @@ async def get_static_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path)
     return JSONResponse(status_code=404, content={"error": "File not found"})
+
