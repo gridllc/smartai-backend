@@ -68,7 +68,7 @@ async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user)
 
         file_ext = os.path.splitext(file.filename)[1].lower()
 
-        # Only convert if it's a video file
+        # If video, convert to .wav
         if file_ext in [".mp4", ".mov", ".mkv", ".avi"]:
             audio_path = file_location.rsplit(".", 1)[0] + "_converted.wav"
             try:
@@ -78,7 +78,7 @@ async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user)
                     audio_path
                 ], check=True)
                 print(f"🎧 Extracted audio to {audio_path}")
-                file_location = audio_path
+                file_location = audio_path  # only update file_location if converted
             except subprocess.CalledProcessError as e:
                 print(f"❌ FFmpeg error: {e}")
                 raise HTTPException(status_code=500, detail="Audio extraction failed")
