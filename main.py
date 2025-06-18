@@ -67,6 +67,8 @@ async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user)
         print(f"📁 Saved file to {file_location}")
 
         file_ext = os.path.splitext(file.filename)[1].lower()
+
+        # Only convert if it's a video file
         if file_ext in [".mp4", ".mov", ".mkv", ".avi"]:
             audio_path = file_location.rsplit(".", 1)[0] + "_converted.wav"
             try:
