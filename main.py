@@ -68,7 +68,7 @@ async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user)
 
         file_ext = os.path.splitext(file.filename)[1].lower()
         if file_ext in [".mp4", ".mov", ".mkv", ".avi"]:
-            audio_path = file_location.rsplit(".", 1)[0] + "_audio.wav"
+            audio_path = file_location.rsplit(".", 1)[0] + "_converted.wav"
             try:
                 subprocess.run([
                     "ffmpeg", "-y", "-i", file_location,
