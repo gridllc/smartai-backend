@@ -82,7 +82,7 @@ async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user)
                 raise HTTPException(status_code=500, detail="Audio extraction failed")
 
         transcript = transcribe_audio(file_location)
-        print(f"📝 Transcript result: {transcript[:100]}...")
+        print(f"🖍️ Transcript result: {transcript[:100]}...")
 
         txt_path = os.path.join(TRANSCRIPT_DIR, file.filename + ".txt")
         with open(txt_path, "w", encoding="utf-8") as f:
