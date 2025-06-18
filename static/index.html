@@ -100,9 +100,57 @@
     }
 
     function showLogin() {
-      document.getElementById("registerBox").style.display = "none";
-      document.getElementById("loginBox").style.display = "block";
+  document.getElementById("registerBox").style.display = "none";
+  document.getElementById("loginBox").style.display = "block";
+}
+
+async function uploadFile() {
+  const fileInput = document.getElementById("fileInput");
+  const file = fileInput.files[0];
+
+  if (!file) {
+    showToast("Please select a file to upload.", "error");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const spinner = document.getElementById("spinner");
+  spinner.style.display = "inline-block";
+
+  try {
+    const res = await fetch("/upload-and-transcribe", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + localStorage.getItem("token")
+      },
+      body: formData
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.detail || "Upload failed");
     }
+
+    showToast("Upload and transcription successful!", "success");
+    loadHistory();
+  } catch (err) {
+    console.error("Upload error:", err);
+    showToast("Upload error: " + err.message, "error");
+  } finally {
+    spinner.style.display = "none";
+  }
+}
+
+    showToast("Transcription complete.", "success");
+    loadHistory();
+  } catch (err) {
+    showToast("Upload error: " + err.message, "error");
+  } finally {
+    spinner.style.display = "none";
+  }
+}
 
     function login() {
       const email = document.getElementById("loginEmail").value;
