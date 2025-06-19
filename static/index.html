@@ -10,6 +10,7 @@
   <style>
     body.dark { background-color: #111; color: #eee; }
     .dark input, .dark button { background-color: #222; color: #fff; border-color: #555; }
+    .dark .profile-box, .dark .source-block { background-color: #333; border-color: #555; }
     .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #555; border-radius: 50%; animation: spin 1s linear infinite; margin-left: 10px; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     #answerText { white-space: pre-wrap; font-size: 1rem; line-height: 1.5; }
@@ -17,11 +18,65 @@
     .source-text { margin-top: 5px; color: #333; cursor: pointer; }
     .history-item { margin: 10px 0; padding: 5px; border-bottom: 1px solid #ccc; }
     .history-item button { margin-left: 10px; }
-    #logout, #darkToggle { float: right; margin-left: 10px; }
+    #logout, #darkToggle, #profileToggle { float: right; margin-left: 10px; }
     #adminPanel { margin-top: 20px; border: 1px solid #aaa; padding: 10px; display: none; }
+    #activityLog { max-height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px; }
+    .profile-box { 
+      position: fixed; 
+      top: 50%; 
+      left: 50%; 
+      transform: translate(-50%, -50%); 
+      background: white; 
+      border: 2px solid #333; 
+      padding: 20px; 
+      border-radius: 8px; 
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+      z-index: 1000; 
+      display: none; 
+      min-width: 300px;
+    }
+    .profile-overlay { 
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      background: rgba(0,0,0,0.5); 
+      z-index: 999; 
+      display: none; 
+    }
+    .profile-box h3 { margin-top: 0; }
+    .profile-box input, .profile-box label { display: block; margin: 10px 0; }
+    .profile-box input[type="text"], .profile-box input[type="email"] { width: 100%; padding: 8px; }
+    .profile-box input[type="checkbox"] { display: inline-block; margin-right: 8px; }
+    .profile-actions { margin-top: 15px; }
+    .profile-actions button { margin-right: 10px; }
   </style>
 </head>
 <body>
+  <!-- Profile Overlay -->
+  <div class="profile-overlay" id="profileOverlay" onclick="toggleProfile()"></div>
+  
+  <!-- Profile Box -->
+  <div class="profile-box" id="profileBox">
+    <h3>Profile Settings</h3>
+    <label for="displayName">Display Name:</label>
+    <input type="text" id="displayName" placeholder="Enter your display name" />
+    
+    <label>
+      <input type="checkbox" id="prefDark" /> Prefer Dark Mode
+    </label>
+    
+    <label>
+      <input type="checkbox" id="emailNotifications" /> Email Notifications
+    </label>
+    
+    <div class="profile-actions">
+      <button onclick="saveProfile()">Save Profile</button>
+      <button onclick="toggleProfile()">Cancel</button>
+    </div>
+  </div>
+
   <!-- Login UI -->
   <div id="loginBox">
     <h2>Login</h2>
@@ -29,6 +84,17 @@
     <input type="password" id="loginPassword" placeholder="Password" />
     <button onclick="login()">Login</button>
     <p>Need an account? <a href="#" onclick="showRegister()">Register here</a></p>
+    <p><a href="#" onclick="showReset()">Forgot Password?</a></p>
+  </div>
+
+  <!-- Password Reset UI -->
+  <div id="resetBox" style="display:none">
+    <h2>Reset Password</h2>
+    <input type="email" id="resetEmail" placeholder="Email" />
+    <input type="password" id="newPassword" placeholder="New Password" />
+    <input type="text" id="resetCode" placeholder="Invite Code" />
+    <button onclick="resetPassword()">Reset Password</button>
+    <p><a href="#" onclick="showLogin()">Back to Login</a></p>
   </div>
 
   <!-- Registration UI -->
@@ -45,10 +111,12 @@
   <!-- Main App UI -->
   <div id="appUI" style="display: none">
     <button id="logout" onclick="logout()">Logout</button>
-    <button id="darkToggle" onclick="toggleDarkMode()">🌙 Toggle Dark</button>
+    <button id="darkToggle" onclick="toggleDarkMode()">🌙 Dark</button>
+    <button id="profileToggle" onclick="toggleProfile()">👤 Profile</button>
     <h1 id="welcomeHeader">SmartAI Audio Transcriber</h1>
     <input type="file" id="fileInput" />
     <button onclick="uploadFile()">Upload & Transcribe</button>
+    <button onclick="downloadAll()">📦 Download All</button>
     <div>
       <input type="text" id="searchInput" placeholder="Search transcripts..." oninput="filterTranscripts()" />
       <select id="sortSelect" onchange="filterTranscripts()">
@@ -69,6 +137,8 @@
     <div id="adminPanel">
       <h3>Admin Panel</h3>
       <p>This section is only visible to admin users.</p>
+      <button onclick="loadActivityLog()">Refresh Activity Log</button>
+      <div id="activityLog"></div>
     </div>
   </div>
 
@@ -81,76 +151,284 @@
       Toastify({ text: message, duration: 3000, gravity: "top", position: "right", backgroundColor: bg }).showToast();
     }
 
+    // Profile Management Functions
+    function toggleProfile() {
+      const box = document.getElementById("profileBox");
+      const overlay = document.getElementById("profileOverlay");
+      const isVisible = box.style.display === "block";
+      
+      box.style.display = isVisible ? "none" : "block";
+      overlay.style.display = isVisible ? "none" : "block";
+      
+      if (!isVisible) {
+        loadProfile();
+      }
+    }
+
+    function loadProfile() {
+      const displayName = localStorage.getItem("displayName") || "";
+      const prefDark = localStorage.getItem("prefDark") === "true";
+      const emailNotifications = localStorage.getItem("emailNotifications") === "true";
+      
+      document.getElementById("displayName").value = displayName;
+      document.getElementById("prefDark").checked = prefDark;
+      document.getElementById("emailNotifications").checked = emailNotifications;
+    }
+
+    function saveProfile() {
+      const displayName = document.getElementById("displayName").value;
+      const prefDark = document.getElementById("prefDark").checked;
+      const emailNotifications = document.getElementById("emailNotifications").checked;
+      
+      localStorage.setItem("displayName", displayName);
+      localStorage.setItem("prefDark", prefDark);
+      localStorage.setItem("emailNotifications", emailNotifications);
+      
+      // Apply dark mode preference immediately
+      if (prefDark) {
+        document.body.classList.add("dark");
+      } else {
+        document.body.classList.remove("dark");
+      }
+      
+      // Update welcome header if display name is set
+      if (displayName) {
+        document.getElementById("welcomeHeader").innerText = `Welcome, ${displayName}`;
+      }
+      
+      showToast("Profile saved.", "success");
+      toggleProfile();
+    }
+
     function logout() {
       localStorage.removeItem("token");
       document.getElementById("loginBox").style.display = "block";
       document.getElementById("appUI").style.display = "none";
       document.getElementById("registerBox").style.display = "none";
+      document.getElementById("resetBox").style.display = "none";
       document.getElementById("adminPanel").style.display = "none";
+      toggleProfile(); // Close profile if open
       showToast("Logged out", "info");
     }
 
     function toggleDarkMode() {
       document.body.classList.toggle("dark");
+      // Save preference
+      localStorage.setItem("prefDark", document.body.classList.contains("dark"));
     }
 
     function showRegister() {
       document.getElementById("loginBox").style.display = "none";
       document.getElementById("registerBox").style.display = "block";
+      document.getElementById("resetBox").style.display = "none";
     }
 
     function showLogin() {
-  document.getElementById("registerBox").style.display = "none";
-  document.getElementById("loginBox").style.display = "block";
-}
-
-async function uploadFile() {
-  const fileInput = document.getElementById("fileInput");
-  const file = fileInput.files[0];
-
-  if (!file) {
-    showToast("Please select a file to upload.", "error");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const spinner = document.getElementById("spinner");
-  spinner.style.display = "inline-block";
-
-  try {
-    const res = await fetch("/upload-and-transcribe", {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + localStorage.getItem("token")
-      },
-      body: formData
-    });
-
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.detail || "Upload failed");
+      document.getElementById("registerBox").style.display = "none";
+      document.getElementById("loginBox").style.display = "block";
+      document.getElementById("resetBox").style.display = "none";
     }
 
-    showToast("Upload and transcription successful!", "success");
-    loadHistory();
-  } catch (err) {
-    console.error("Upload error:", err);
-    showToast("Upload error: " + err.message, "error");
-  } finally {
-    spinner.style.display = "none";
-  }
-}
+    function showReset() {
+      document.getElementById("loginBox").style.display = "none";
+      document.getElementById("resetBox").style.display = "block";
+    }
 
-    showToast("Transcription complete.", "success");
-    loadHistory();
-  } catch (err) {
-    showToast("Upload error: " + err.message, "error");
-  } finally {
-    spinner.style.display = "none";
-  }
-}
+    async function resetPassword() {
+      const email = document.getElementById("resetEmail").value;
+      const password = document.getElementById("newPassword").value;
+      const code = document.getElementById("resetCode").value;
+
+      try {
+        const res = await fetch("/reset-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, code })
+        });
+
+        if (!res.ok) throw new Error("Reset failed");
+        
+        showToast("Password updated!", "success");
+        showLogin();
+      } catch (err) {
+        showToast("Reset error: " + err.message, "error");
+      }
+    }
+
+    async function downloadAll() {
+      try {
+        showToast("Preparing download...", "info");
+        
+        const response = await fetch("/api/download/all", {
+          method: "GET",
+          headers: {
+            "Authorization": "Bearer " + localStorage.getItem("token")
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error("Download failed");
+        }
+
+        // Create a blob from the response
+        const blob = await response.blob();
+        
+        // Create a temporary URL for the blob
+        const url = window.URL.createObjectURL(blob);
+        
+        // Create a temporary anchor element to trigger download
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "all_transcripts.zip";
+        document.body.appendChild(a);
+        a.click();
+        
+        // Clean up
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        showToast("Download started!", "success");
+      } catch (err) {
+        console.error("Download error:", err);
+        showToast("Download error: " + err.message, "error");
+      }
+    }
+
+    async function loadActivityLog() {
+      try {
+        const res = await fetch("/api/activity-log", {
+          headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+        });
+        
+        if (!res.ok) throw new Error("Failed to load activity log");
+        
+        const data = await res.json();
+        const logDiv = document.getElementById("activityLog");
+        logDiv.innerHTML = "<h4>Recent Activity</h4><ul>" +
+          data.log.map(e => `<li>${e[1]} - ${e[2] || "(no file)"} by ${e[0]} @ ${e[3]}</li>`).join("") +
+          "</ul>";
+      } catch (err) {
+        showToast("Error loading activity log: " + err.message, "error");
+      }
+    }
+
+    async function uploadFile() {
+      const fileInput = document.getElementById("fileInput");
+      const file = fileInput.files[0];
+
+      if (!file) {
+        showToast("Please select a file to upload.", "error");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const spinner = document.getElementById("spinner");
+      spinner.style.display = "inline-block";
+
+      try {
+        const res = await fetch("/upload-and-transcribe", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + localStorage.getItem("token")
+          },
+          body: formData
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.detail || "Upload failed");
+        }
+
+        const result = await res.json();
+        showToast("Upload and transcription successful!", "success");
+        
+        // Check if email notifications are enabled and send notification
+        if (localStorage.getItem("emailNotifications") === "true") {
+          try {
+            await fetch("/send-email-notification", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + localStorage.getItem("token")
+              },
+              body: JSON.stringify({
+                email: currentUser,
+                transcript_path: result.transcript_path || "transcript.txt"
+              })
+            });
+            showToast("Email notification sent!", "info");
+          } catch (emailErr) {
+            console.error("Email notification error:", emailErr);
+            // Don't show error to user as main upload was successful
+          }
+        }
+        
+        loadHistory();
+        fileInput.value = ""; // Clear the file input
+      } catch (err) {
+        console.error("Upload error:", err);
+        showToast("Upload error: " + err.message, "error");
+      } finally {
+        spinner.style.display = "none";
+      }
+    }
+
+    async function askQuestion() {
+      const questionInput = document.getElementById("questionInput");
+      const question = questionInput.value.trim();
+      
+      if (!question) {
+        showToast("Please enter a question.", "error");
+        return;
+      }
+
+      const spinner = document.getElementById("spinner");
+      spinner.style.display = "inline-block";
+
+      try {
+        const res = await fetch("/ask", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + localStorage.getItem("token")
+          },
+          body: JSON.stringify({ question })
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.detail || "Question failed");
+        }
+
+        const data = await res.json();
+        
+        document.getElementById("answerText").textContent = data.answer;
+        
+        const sourcesBox = document.getElementById("sourcesBox");
+        sourcesBox.innerHTML = "";
+        
+        if (data.sources && data.sources.length > 0) {
+          data.sources.forEach(source => {
+            const sourceDiv = document.createElement("div");
+            sourceDiv.className = "source-block";
+            sourceDiv.innerHTML = `
+              <strong>Source:</strong> ${source.source || "Unknown"}
+              <div class="source-text">${source.text}</div>
+            `;
+            sourcesBox.appendChild(sourceDiv);
+          });
+        }
+
+        questionInput.value = "";
+      } catch (err) {
+        console.error("Question error:", err);
+        showToast("Question error: " + err.message, "error");
+      } finally {
+        spinner.style.display = "none";
+      }
+    }
 
     function login() {
       const email = document.getElementById("loginEmail").value;
@@ -164,14 +442,24 @@ async function uploadFile() {
         if (!res.ok) throw new Error("Login failed");
         return res.json();
       }).then(data => {
-        localStorage.setItem("token", data.token);
-        currentUser = data.token;
+        localStorage.setItem("token", data.access_token);
+        currentUser = email;
         document.getElementById("loginBox").style.display = "none";
         document.getElementById("appUI").style.display = "block";
-        document.getElementById("welcomeHeader").innerText = `Welcome, ${data.token}`;
-        if (data.token === "patrick@gridllc.net") {
+        
+        // Set welcome message based on display name or email
+        const displayName = localStorage.getItem("displayName");
+        document.getElementById("welcomeHeader").innerText = `Welcome, ${displayName || email}`;
+        
+        if (email === "patrick@gridllc.net") {
           document.getElementById("adminPanel").style.display = "block";
         }
+        
+        // Apply saved preferences
+        if (localStorage.getItem("prefDark") === "true") {
+          document.body.classList.add("dark");
+        }
+        
         loadHistory();
         showToast("Login successful", "success");
       }).catch(err => {
@@ -181,14 +469,14 @@ async function uploadFile() {
 
     function register() {
       const full_name = document.getElementById("registerName").value;
-      const username = document.getElementById("registerEmail").value;
+      const email = document.getElementById("registerEmail").value;
       const password = document.getElementById("registerPassword").value;
       const invite_code = document.getElementById("registerCode").value;
 
       fetch("/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ full_name, username, password, invite_code })
+        body: JSON.stringify({ email, password, full_name, invite_code })
       }).then(res => {
         if (!res.ok) throw new Error("Registration failed");
         return res.json();
@@ -199,9 +487,6 @@ async function uploadFile() {
         showToast("Registration error: " + err.message, "error");
       });
     }
-
-    // uploadFile, askQuestion, loadHistory remain unchanged...
-    // Add filterTranscripts() to handle search/sort UI
 
     function filterTranscripts() {
       const query = document.getElementById("searchInput").value.toLowerCase();
@@ -234,12 +519,19 @@ async function uploadFile() {
 
       previewBtn.onclick = async () => {
         if (previewBox.style.display === "none") {
-          const res = await fetch(`/api/transcript/${filename}`, {
-            headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
-          });
-          const data = await res.json();
-          previewBox.innerText = data.transcript || "[Empty]";
-          previewBox.style.display = "block";
+          try {
+            const res = await fetch(`/api/transcript/${filename}`, {
+              headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+            });
+            
+            if (!res.ok) throw new Error("Failed to load transcript");
+            
+            const data = await res.json();
+            previewBox.innerText = data.transcript || "[Empty]";
+            previewBox.style.display = "block";
+          } catch (err) {
+            showToast("Error loading transcript: " + err.message, "error");
+          }
         } else {
           previewBox.style.display = "none";
         }
@@ -247,18 +539,27 @@ async function uploadFile() {
 
       const downloadBtn = document.createElement("button");
       downloadBtn.innerText = "Download";
-      downloadBtn.onclick = () => window.location.href = `/api/download/${filename}`;
+      downloadBtn.onclick = () => {
+        window.location.href = `/api/download/${filename}`;
+      };
 
       const deleteBtn = document.createElement("button");
       deleteBtn.innerText = "Delete";
       deleteBtn.onclick = async () => {
         if (confirm(`Delete ${filename}?`)) {
-          await fetch(`/api/delete/${filename}`, {
-            method: "DELETE",
-            headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
-          });
-          loadHistory();
-          showToast(`${filename} deleted.`, "info");
+          try {
+            const res = await fetch(`/api/delete/${filename}`, {
+              method: "DELETE",
+              headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+            });
+            
+            if (!res.ok) throw new Error("Delete failed");
+            
+            loadHistory();
+            showToast(`${filename} deleted.`, "info");
+          } catch (err) {
+            showToast("Delete error: " + err.message, "error");
+          }
         }
       };
 
@@ -272,24 +573,42 @@ async function uploadFile() {
     }
 
     async function loadHistory() {
-      const res = await fetch("/api/history", {
-        headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
-      });
-      const data = await res.json();
-      allTranscripts = data.files || [];
-      filterTranscripts();
+      try {
+        const res = await fetch("/api/history", {
+          headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+        });
+        
+        if (!res.ok) throw new Error("Failed to load history");
+        
+        const data = await res.json();
+        allTranscripts = data.files || [];
+        filterTranscripts();
+      } catch (err) {
+        showToast("Error loading history: " + err.message, "error");
+      }
     }
 
     window.onload = () => {
       const token = localStorage.getItem("token");
       if (token) {
-        currentUser = token;
+        // Extract email from token or use a stored value
+        currentUser = localStorage.getItem("userEmail") || "user";
         document.getElementById("loginBox").style.display = "none";
         document.getElementById("appUI").style.display = "block";
-        document.getElementById("welcomeHeader").innerText = `Welcome, ${token}`;
-        if (token === "patrick@gridllc.net") {
+        
+        // Set welcome message based on display name or email
+        const displayName = localStorage.getItem("displayName");
+        document.getElementById("welcomeHeader").innerText = `Welcome, ${displayName || currentUser}`;
+        
+        if (currentUser === "patrick@gridllc.net") {
           document.getElementById("adminPanel").style.display = "block";
         }
+        
+        // Apply saved preferences
+        if (localStorage.getItem("prefDark") === "true") {
+          document.body.classList.add("dark");
+        }
+        
         loadHistory();
       } else {
         document.getElementById("loginBox").style.display = "block";
@@ -297,6 +616,32 @@ async function uploadFile() {
         document.getElementById("appUI").style.display = "none";
       }
     };
+
+    // Close profile when clicking outside
+    document.addEventListener('click', function(event) {
+      const profileBox = document.getElementById('profileBox');
+      const profileButton = document.getElementById('profileToggle');
+      
+      if (profileBox.style.display === 'block' && 
+          !profileBox.contains(event.target) && 
+          event.target !== profileButton) {
+        toggleProfile();
+      }
+    });
+
+    // Handle Enter key in question input
+    document.addEventListener('keypress', function(event) {
+      if (event.key === 'Enter') {
+        const activeElement = document.activeElement;
+        if (activeElement.id === 'questionInput') {
+          askQuestion();
+        } else if (activeElement.id === 'loginPassword') {
+          login();
+        } else if (activeElement.id === 'registerPassword') {
+          register();
+        }
+      }
+    });
   </script>
 </body>
 </html>
