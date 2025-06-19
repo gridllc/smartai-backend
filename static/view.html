@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Shared Transcript</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; background: #f9f9f9; }
+    #transcript { white-space: pre-wrap; border: 1px solid #ccc; padding: 1rem; background: #fff; }
+  </style>
+</head>
+<body>
+  <h2>Shared Transcript</h2>
+  <div id="transcript">Loading...</div>
+  <script>
+    const filename = new URLSearchParams(window.location.search).get("file");
+    fetch(`/share/${filename}`).then(res => res.json()).then(data => {
+      document.getElementById("transcript").innerText = data.transcript || "Not found.";
+    }).catch(() => {
+      document.getElementById("transcript").innerText = "Error loading transcript.";
+    });
+  </script>
+</body>
+</html>

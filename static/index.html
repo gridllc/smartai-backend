@@ -617,6 +617,15 @@
 
       const previewBtn = document.createElement("button");
       previewBtn.innerText = "Preview";
+      const shareBtn = document.createElement("button");
+      shareBtn.innerText = "Share";
+      shareBtn.onclick = () => {
+        const link = `${window.location.origin}/static/view.html?file=${filename}`;
+        navigator.clipboard.writeText(link);
+        showToast("Shareable link copied!", "info");
+      };
+      div.appendChild(shareBtn);  
+      
       const previewBox = document.createElement("div");
       previewBox.style.display = "none";
       previewBox.style.marginTop = "5px";
