@@ -1,11 +1,11 @@
 import os
 import shutil
-import json
 import subprocess
 import traceback
 import io
 import sqlite3
 import uuid
+import json
 from datetime import datetime
 from collections import Counter
 from zipfile import ZipFile
@@ -22,6 +22,7 @@ from upload_processor import transcribe_audio, get_openai_client
 from pinecone_sdk import search_similar_chunks
 from auth import get_current_user, authenticate_user, register_user, create_access_token
 from email_utils import send_email_with_attachment
+from starlette.background import BackgroundTask
 
 load_dotenv()
 
@@ -152,25 +153,52 @@ async def stream_answer(request: AskRequest, user=Depends(get_current_user)):
         stream=True
     )
 
+    answer_accumulator = []
+
     def event_generator():
         yield f"data: {json.dumps({'type': 'sources', 'data': chunks})}\n\n"
         for chunk in stream:
             if chunk.choices and chunk.choices[0].delta.content:
                 token = chunk.choices[0].delta.content
+                answer_accumulator.append(token)
                 yield f"data: {json.dumps({'type': 'token', 'data': token})}\n\n"
 
     log_activity(user.email, "ask")
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
-# NEW: API route to update transcript tags
-@app.post("/api/transcript/{filename}/tag")
-async def update_tag(filename: str, tag: str = Form(...)):
-    conn = sqlite3.connect("transcripts.db")
+    # Log question/answer into qa_history table
+    def save_history():
+        answer = ''.join(answer_accumulator).strip()
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO qa_history (email, question, answer, timestamp)
+            VALUES (?, ?, ?, ?)
+        """, (user.email, question, answer, datetime.utcnow().isoformat()))
+        conn.commit()
+        conn.close()
+  
+   # ✅ This part should be OUTSIDE the function
+    response = StreamingResponse(event_generator(), media_type="text/event-stream")
+    response.background = BackgroundTask(save_history)
+    return response     
+        
+ @app.get("/api/qa-history")
+async def get_qa_history(user=Depends(get_current_user)):
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("UPDATE transcripts SET tag = ? WHERE filename = ?", (tag, filename))
-    conn.commit()
+    c.execute("""
+        SELECT question, answer, timestamp
+        FROM qa_history
+        WHERE email = ?
+        ORDER BY id DESC
+        LIMIT 50
+    """, (user.email,))
+    rows = c.fetchall()
     conn.close()
-    return {"message": "Tag saved"}
+    return {"history": [{"question": q, "answer": a, "timestamp": t} for q, a, t in rows]}       
+
+    # Attach finalizer after stream ends
+
 
 # NEW: API route to get shared transcripts
 @app.get("/api/share/{filename}")

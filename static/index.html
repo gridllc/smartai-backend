@@ -599,66 +599,61 @@
       }
     }
 
-    
+
 
     async function askQuestion() {
-      const questionInput = document.getElementById("questionInput");
-      const question = questionInput.value.trim();
-      if (!question) return showToast("Please enter a question.", "error");
+  const questionInput = document.getElementById("questionInput");
+  const question = questionInput.value.trim();
+  if (!question) return showToast("Please enter a question.", "error");
 
-      const answerBox = document.getElementById("answerBox");
-      const answerText = document.getElementById("answerText");
-      const sourcesBox = document.getElementById("sourcesBox");
-      answerText.textContent = "";
-      sourcesBox.innerHTML = "";
+  const answerBox = document.getElementById("answerBox");
+  const answerText = document.getElementById("answerText");
+  const sourcesBox = document.getElementById("sourcesBox");
+  answerText.textContent = "";
+  sourcesBox.innerHTML = "";
 
-      const spinner = document.getElementById("spinner");
-      spinner.style.display = "inline-block";
+  const spinner = document.getElementById("spinner");
+  spinner.style.display = "inline-block";
 
-      const response = await fetch("/ask", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + localStorage.getItem("token")
-        },
-        body: JSON.stringify({ question })
-      });
+  const response = await fetch("/ask", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + localStorage.getItem("token")
+    },
+    body: JSON.stringify({ question })
+  });
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split("\n\n")) {
-          if (!line.startsWith("data:")) continue;
-          const payload = JSON.parse(line.slice(5));
+    const chunk = decoder.decode(value, { stream: true });
+    for (const line of chunk.split("\n\n")) {
+      if (!line.startsWith("data:")) continue;
+      const payload = JSON.parse(line.slice(5));
 
-          if (payload.type === "token") {
-            answerText.textContent += payload.data;
-          } else if (payload.type === "sources") {
-            payload.data.forEach(source => {
-              const block = document.createElement("div");
-              block.className = "source-block";
-              block.innerHTML = `<strong>Source:</strong> ${source.source || "Unknown"}
+      if (payload.type === "token") {
+        answerText.textContent += payload.data;
+      } else if (payload.type === "sources") {
+        payload.data.forEach(source => {
+          const block = document.createElement("div");
+          block.className = "source-block";
+          if (source.highlight) block.style.border = "2px solid #007bff";
+          block.innerHTML = `<strong>Source:</strong> ${source.source || "Unknown"}
                              <div class='source-text'>${source.text}</div>`;
-              sourcesBox.appendChild(block);
-            });
-          }
-        }
+          sourcesBox.appendChild(block);
+        });
       }
-
-      spinner.style.display = "none";
-      questionInput.value = "";
     }
+  }
 
-
-
-
-
-
+  spinner.style.display = "none";
+  questionInput.value = "";
+}
 
     function login() {
       const email = document.getElementById("loginEmail").value;
