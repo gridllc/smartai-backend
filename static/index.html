@@ -18,8 +18,8 @@
     .source-text { margin-top: 5px; color: #333; cursor: pointer; }
     .history-item { margin: 10px 0; padding: 5px; border-bottom: 1px solid #ccc; }
     .history-item button { margin-left: 10px; }
-    #logout, #darkToggle, #profileToggle { float: right; margin-left: 10px; }
-    #adminPanel { margin-top: 20px; border: 1px solid #aaa; padding: 10px; display: none; }
+    #logout, #darkToggle, #profileToggle, #analyticsToggle { float: right; margin-left: 10px; }
+    #adminPanel, #analyticsPanel { margin-top: 20px; border: 1px solid #aaa; padding: 10px; display: none; }
     #activityLog { max-height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px; }
     .profile-box { 
       position: fixed; 
@@ -51,6 +51,13 @@
     .profile-box input[type="checkbox"] { display: inline-block; margin-right: 8px; }
     .profile-actions { margin-top: 15px; }
     .profile-actions button { margin-right: 10px; }
+    .tag-input { display: inline-block; margin-left: 10px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .tags-display { margin-top: 5px; }
+    .tag-badge { display: inline-block; background: #007bff; color: white; padding: 2px 6px; margin: 2px; border-radius: 3px; font-size: 0.8em; }
+    .analytics-section { margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #f9f9f9; }
+    .dark .analytics-section { background: #333; border-color: #555; }
+    .analytics-stat { display: inline-block; margin: 5px 10px; padding: 5px; background: #e9ecef; border-radius: 3px; }
+    .dark .analytics-stat { background: #444; }
   </style>
 </head>
 <body>
@@ -113,6 +120,7 @@
     <button id="logout" onclick="logout()">Logout</button>
     <button id="darkToggle" onclick="toggleDarkMode()">🌙 Dark</button>
     <button id="profileToggle" onclick="toggleProfile()">👤 Profile</button>
+    <button id="analyticsToggle" onclick="toggleAnalytics()">📊 Analytics</button>
     <h1 id="welcomeHeader">SmartAI Audio Transcriber</h1>
     <input type="file" id="fileInput" />
     <button onclick="uploadFile()">Upload & Transcribe</button>
@@ -134,6 +142,14 @@
       <div id="answerText"></div>
       <div id="sourcesBox"></div>
     </div>
+    
+    <!-- Analytics Panel -->
+    <div id="analyticsPanel">
+      <h3>Analytics Dashboard</h3>
+      <button onclick="loadAnalytics()">Refresh Analytics</button>
+      <div id="analyticsContent"></div>
+    </div>
+    
     <div id="adminPanel">
       <h3>Admin Panel</h3>
       <p>This section is only visible to admin users.</p>
@@ -149,6 +165,66 @@
     function showToast(message, type = "info") {
       let bg = { success: "#4CAF50", error: "#f44336", info: "#2196F3" }[type] || "#333";
       Toastify({ text: message, duration: 3000, gravity: "top", position: "right", backgroundColor: bg }).showToast();
+    }
+
+    // Analytics Functions
+    function toggleAnalytics() {
+      const panel = document.getElementById("analyticsPanel");
+      panel.style.display = panel.style.display === "none" ? "block" : "none";
+      
+      if (panel.style.display === "block") {
+        loadAnalytics();
+      }
+    }
+
+    async function loadAnalytics() {
+      try {
+        const res = await fetch("/api/stats", {
+          headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+        });
+        
+        if (!res.ok) throw new Error("Failed to load analytics");
+        
+        const data = await res.json();
+        displayAnalytics(data);
+      } catch (err) {
+        showToast("Error loading analytics: " + err.message, "error");
+      }
+    }
+
+    function displayAnalytics(data) {
+      const content = document.getElementById("analyticsContent");
+      content.innerHTML = `
+        <div class="analytics-section">
+          <h4>Email Activity</h4>
+          ${Object.entries(data).map(([email, count]) => 
+            `<div class="analytics-stat">
+              <strong>${email}:</strong> ${count} activities
+            </div>`
+          ).join('')}
+        </div>
+      `;
+    }
+
+    // Tag Management Functions
+    async function updateTag(filename, tag) {
+      try {
+        const res = await fetch(`/api/transcript/${filename}/tag`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + localStorage.getItem("token")
+          },
+          body: JSON.stringify({ tag })
+        });
+
+        if (!res.ok) throw new Error("Failed to update tag");
+        
+        showToast("Tag updated successfully!", "success");
+        loadHistory(); // Refresh the list to show updated tags
+      } catch (err) {
+        showToast("Error updating tag: " + err.message, "error");
+      }
     }
 
     // Profile Management Functions
@@ -207,6 +283,7 @@
       document.getElementById("registerBox").style.display = "none";
       document.getElementById("resetBox").style.display = "none";
       document.getElementById("adminPanel").style.display = "none";
+      document.getElementById("analyticsPanel").style.display = "none";
       toggleProfile(); // Close profile if open
       showToast("Logged out", "info");
     }
@@ -491,7 +568,10 @@
     function filterTranscripts() {
       const query = document.getElementById("searchInput").value.toLowerCase();
       const sortBy = document.getElementById("sortSelect").value;
-      let filtered = allTranscripts.filter(name => name.toLowerCase().includes(query));
+      let filtered = allTranscripts.filter(item => {
+        const name = typeof item === 'string' ? item : item.filename;
+        return name.toLowerCase().includes(query);
+      });
       if (sortBy === "newest") filtered.reverse();
 
       const historyDiv = document.getElementById("transcriptHistory");
@@ -499,12 +579,41 @@
       filtered.forEach(renderTranscriptItem);
     }
 
-    function renderTranscriptItem(filename) {
+    function renderTranscriptItem(item) {
+      const filename = typeof item === 'string' ? item : item.filename;
+      const tag = typeof item === 'object' ? item.tag : null;
+      
       const div = document.createElement("div");
       div.className = "history-item";
 
       const nameSpan = document.createElement("span");
       nameSpan.innerText = `📄 ${filename}`;
+
+      // Tag input
+      const tagInput = document.createElement("input");
+      tagInput.type = "text";
+      tagInput.className = "tag-input";
+      tagInput.placeholder = "Add tag...";
+      tagInput.value = tag || "";
+      tagInput.onkeypress = (e) => {
+        if (e.key === 'Enter') {
+          updateTag(filename, tagInput.value);
+        }
+      };
+
+      const tagButton = document.createElement("button");
+      tagButton.innerText = "Tag";
+      tagButton.onclick = () => updateTag(filename, tagInput.value);
+
+      // Display current tag if exists
+      const tagsDisplay = document.createElement("div");
+      tagsDisplay.className = "tags-display";
+      if (tag) {
+        const tagBadge = document.createElement("span");
+        tagBadge.className = "tag-badge";
+        tagBadge.innerText = tag;
+        tagsDisplay.appendChild(tagBadge);
+      }
 
       const previewBtn = document.createElement("button");
       previewBtn.innerText = "Preview";
@@ -564,9 +673,12 @@
       };
 
       div.appendChild(nameSpan);
+      div.appendChild(tagInput);
+      div.appendChild(tagButton);
       div.appendChild(previewBtn);
       div.appendChild(downloadBtn);
       div.appendChild(deleteBtn);
+      div.appendChild(tagsDisplay);
       div.appendChild(previewBox);
 
       document.getElementById("transcriptHistory").appendChild(div);

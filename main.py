@@ -1,405 +1,287 @@
+import os
+import shutil
+import subprocess
+import traceback
+import io
+import sqlite3
+import uuid
+from datetime import datetime
+from collections import Counter
+from zipfile import ZipFile
+from fastapi import FastAPI, UploadFile, Depends, HTTPException, Request, Form
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from dotenv import load_dotenv
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SmartAI Audio Transcriber</title>
-  <link rel="stylesheet" href="/static/style.css" />
-  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
-  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
-  <style>
-    body.dark { background-color: #111; color: #eee; }
-    .dark input, .dark button { background-color: #222; color: #fff; border-color: #555; }
-    .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #555; border-radius: 50%; animation: spin 1s linear infinite; margin-left: 10px; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    #answerText { white-space: pre-wrap; font-size: 1rem; line-height: 1.5; }
-    .source-block { margin-top: 10px; padding: 10px; border: 1px solid #aaa; border-radius: 6px; background: #f9f9f9; font-size: 0.9em; }
-    .source-text { margin-top: 5px; color: #333; cursor: pointer; }
-    .history-item { margin: 10px 0; padding: 5px; border-bottom: 1px solid #ccc; }
-    .history-item button { margin-left: 10px; }
-    #logout, #darkToggle { float: right; margin-left: 10px; }
-    #adminPanel { margin-top: 20px; border: 1px solid #aaa; padding: 10px; display: none; }
-    #activityLog { max-height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px; }
-  </style>
-</head>
-<body>
-  <!-- Login UI -->
-  <div id="loginBox">
-    <h2>Login</h2>
-    <input type="email" id="loginEmail" placeholder="Email" />
-    <input type="password" id="loginPassword" placeholder="Password" />
-    <button onclick="login()">Login</button>
-    <p>Need an account? <a href="#" onclick="showRegister()">Register here</a></p>
-    <p><a href="#" onclick="showReset()">Forgot Password?</a></p>
-  </div>
+from database import engine, get_db
+from models import Base
+from upload_processor import transcribe_audio, get_openai_client
+from pinecone_sdk import search_similar_chunks
+from auth import get_current_user, authenticate_user, register_user, create_access_token
+from utils import send_email_with_attachment  # helper function
 
-  <!-- Password Reset UI -->
-  <div id="resetBox" style="display:none">
-    <h2>Reset Password</h2>
-    <input type="email" id="resetEmail" placeholder="Email" />
-    <input type="password" id="newPassword" placeholder="New Password" />
-    <input type="text" id="resetCode" placeholder="Invite Code" />
-    <button onclick="resetPassword()">Reset Password</button>
-    <p><a href="#" onclick="showLogin()">Back to Login</a></p>
-  </div>
+load_dotenv()
 
-  <!-- Registration UI -->
-  <div id="registerBox" style="display:none">
-    <h2>Register</h2>
-    <input type="text" id="registerName" placeholder="Full Name" />
-    <input type="email" id="registerEmail" placeholder="Email" />
-    <input type="password" id="registerPassword" placeholder="Password" />
-    <input type="text" id="registerCode" placeholder="Invite Code" />
-    <button onclick="register()">Register</button>
-    <p>Already have an account? <a href="#" onclick="showLogin()">Go to login</a></p>
-  </div>
+app = FastAPI()
+Base.metadata.create_all(bind=engine)
 
-  <!-- Main App UI -->
-  <div id="appUI" style="display: none">
-    <button id="logout" onclick="logout()">Logout</button>
-    <button id="darkToggle" onclick="toggleDarkMode()">🌙 Toggle Dark</button>
-    <h1 id="welcomeHeader">SmartAI Audio Transcriber</h1>
-    <input type="file" id="fileInput" />
-    <button onclick="uploadFile()">Upload & Transcribe</button>
-    <button onclick="downloadAll()">Download All</button>
-    <div>
-      <input type="text" id="searchInput" placeholder="Search transcripts..." oninput="filterTranscripts()" />
-      <select id="sortSelect" onchange="filterTranscripts()">
-        <option value="newest">Newest First</option>
-        <option value="oldest">Oldest First</option>
-      </select>
-    </div>
-    <div id="transcriptHistory"></div>
-    <hr>
-    <h2>Ask a Question</h2>
-    <input type="text" id="questionInput" placeholder="Ask a question..." />
-    <button onclick="askQuestion()">Ask</button>
-    <div id="spinner" class="spinner" style="display: none;"></div>
-    <div id="answerBox">
-      <div id="answerText"></div>
-      <div id="sourcesBox"></div>
-    </div>
-    <div id="adminPanel">
-      <h3>Admin Panel</h3>
-      <p>This section is only visible to admin users.</p>
-      <button onclick="loadActivityLog()">Refresh Activity Log</button>
-      <div id="activityLog"></div>
-    </div>
-  </div>
+UPLOAD_DIR = "uploads"
+TRANSCRIPT_DIR = "transcripts"
+STATIC_DIR = "static"
+DB_PATH = "transcripts.db"
 
-  <script>
-    let currentUser = null;
-    let allTranscripts = [];
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(TRANSCRIPT_DIR, exist_ok=True)
+os.makedirs(STATIC_DIR, exist_ok=True)
 
-    function showToast(message, type = "info") {
-      let bg = { success: "#4CAF50", error: "#f44336", info: "#2196F3" }[type] || "#333";
-      Toastify({ text: message, duration: 3000, gravity: "top", position: "right", backgroundColor: bg }).showToast();
-    }
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-    function logout() {
-      localStorage.removeItem("token");
-      document.getElementById("loginBox").style.display = "block";
-      document.getElementById("appUI").style.display = "none";
-      document.getElementById("registerBox").style.display = "none";
-      document.getElementById("resetBox").style.display = "none";
-      document.getElementById("adminPanel").style.display = "none";
-      showToast("Logged out", "info");
-    }
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    function toggleDarkMode() {
-      document.body.classList.toggle("dark");
-    }
+class AskRequest(BaseModel):
+    question: str
 
-    function showRegister() {
-      document.getElementById("loginBox").style.display = "none";
-      document.getElementById("registerBox").style.display = "block";
-      document.getElementById("resetBox").style.display = "none";
-    }
+class LoginRequest(BaseModel):
+    email: str
+    password: str
 
-    function showLogin() {
-      document.getElementById("registerBox").style.display = "none";
-      document.getElementById("loginBox").style.display = "block";
-      document.getElementById("resetBox").style.display = "none";
-    }
+@app.get("/")
+def read_root():
+    return FileResponse("static/index.html")
 
-    function showReset() {
-      document.getElementById("loginBox").style.display = "none";
-      document.getElementById("resetBox").style.display = "block";
-    }
+@app.post("/upload-and-transcribe")
+async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user)):
+    try:
+        file_location = os.path.join(UPLOAD_DIR, file.filename)
+        with open(file_location, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        print(f"📁 Saved file to {file_location}")
 
-    async function resetPassword() {
-      const email = document.getElementById("resetEmail").value;
-      const password = document.getElementById("newPassword").value;
-      const code = document.getElementById("resetCode").value;
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        audio_file_path = file_location
 
-      try {
-        const res = await fetch("/reset-password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, code })
-        });
+        if file_ext in [".mp4", ".mov", ".mkv", ".avi"]:
+            audio_file_path = file_location.rsplit(".", 1)[0] + "_converted.wav"
+            try:
+                print(f"🎬 Converting video {file.filename} to audio...")
+                subprocess.run([
+                    "ffmpeg", "-y", "-i", file_location,
+                    "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
+                    audio_file_path
+                ], check=True, capture_output=True, text=True)
+                print(f"🎧 Extracted audio to {audio_file_path}")
+            except subprocess.CalledProcessError as e:
+                print(f"❌ FFmpeg error: {e}")
+                print(f"FFmpeg stderr: {e.stderr}")
+                raise HTTPException(status_code=500, detail=f"Audio extraction failed: {e.stderr}")
 
-        if (!res.ok) throw new Error("Reset failed");
-        
-        showToast("Password updated!", "success");
-        showLogin();
-      } catch (err) {
-        showToast("Reset error: " + err.message, "error");
-      }
-    }
+        elif file_ext not in [".wav", ".mp3", ".m4a", ".flac", ".ogg"]:
+            raise HTTPException(status_code=400, detail=f"Unsupported file format: {file_ext}")
 
-    async function downloadAll() {
-      window.location.href = "/api/download/all";
-    }
+        print(f"🎙️ Starting transcription of {os.path.basename(audio_file_path)}")
+        transcript = transcribe_audio(audio_file_path)
+        print(f"📝 Transcription completed: {len(transcript)} characters")
 
-    async function loadActivityLog() {
-      const res = await fetch("/api/activity-log", {
-        headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
-      });
-      const data = await res.json();
-      const logDiv = document.getElementById("activityLog");
-      logDiv.innerHTML = "<h4>Recent Activity</h4><ul>" +
-        data.log.map(e => `<li>${e[1]} - ${e[2] || "(no file)"} by ${e[0]} @ ${e[3]}</li>`).join("") +
-        "</ul>";
-    }
+        txt_path = os.path.join(TRANSCRIPT_DIR, file.filename + ".txt")
+        with open(txt_path, "w", encoding="utf-8") as f:
+            f.write(transcript)
+        print(f"💾 Transcript saved to {txt_path}")
 
-    async function uploadFile() {
-      const fileInput = document.getElementById("fileInput");
-      const file = fileInput.files[0];
+        client = get_openai_client()
+        summary_response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "Summarize this transcript in 2–3 sentences."},
+                {"role": "user", "content": transcript[:3000]}
+            ],
+            max_tokens=200,
+            temperature=0.5
+        )
+        summary = summary_response.choices[0].message.content.strip()
 
-      if (!file) {
-        showToast("Please select a file to upload.", "error");
-        return;
-      }
+        summary_path = txt_path.replace(".txt", "_summary.txt")
+        with open(summary_path, "w", encoding="utf-8") as f:
+            f.write(summary)
 
-      const formData = new FormData();
-      formData.append("file", file);
+        try:
+            send_email_with_attachment(
+                to_email=user.email,
+                subject="Your SmartAI Transcript",
+                body=f"Attached is your transcript for file: {file.filename}\n\nSummary:\n{summary}",
+                file_path=txt_path
+            )
+        except Exception as email_error:
+            print(f"⚠️ Email sending failed: {email_error}")
 
-      const spinner = document.getElementById("spinner");
-      spinner.style.display = "inline-block";
+        log_activity(user.email, "upload", file.filename)
 
-      try {
-        const res = await fetch("/upload-and-transcribe", {
-          method: "POST",
-          headers: {
-            "Authorization": "Bearer " + localStorage.getItem("token")
-          },
-          body: formData
-        });
+        return {"filename": file.filename, "transcript": transcript, "summary": summary}
 
-        if (!res.ok) {
-          const error = await res.json();
-          throw new Error(error.detail || "Upload failed");
-        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Top-level error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
-        showToast("Upload and transcription successful!", "success");
-        loadHistory();
-      } catch (err) {
-        console.error("Upload error:", err);
-        showToast("Upload error: " + err.message, "error");
-      } finally {
-        spinner.style.display = "none";
-      }
-    }
+@app.post("/ask")
+async def ask_question(request: AskRequest, user=Depends(get_current_user)):
+    question = request.question
+    relevant_chunks = search_similar_chunks(question, top_k=5)
+    context_block = "\n\n".join([chunk["text"] for chunk in relevant_chunks])
+    system_prompt = (
+        "You are a helpful assistant. Use the following transcript snippets to answer the question.\n\n"
+        f"{context_block}\n\nQuestion: {question}"
+    )
+    client = get_openai_client()
+    response = client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "system", "content": system_prompt}],
+        temperature=0.3,
+        max_tokens=500
+    )
+    answer = response.choices[0].message.content
 
-    async function askQuestion() {
-      const questionInput = document.getElementById("questionInput");
-      const question = questionInput.value.trim();
-      
-      if (!question) {
-        showToast("Please enter a question.", "error");
-        return;
-      }
+    log_activity(user.email, "ask")
 
-      const spinner = document.getElementById("spinner");
-      spinner.style.display = "inline-block";
+    return {"answer": answer, "sources": relevant_chunks}
 
-      try {
-        const res = await fetch("/ask", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + localStorage.getItem("token")
-          },
-          body: JSON.stringify({ question })
-        });
+# NEW: API route to update transcript tags
+@app.post("/api/transcript/{filename}/tag")
+async def update_tag(filename: str, tag: str = Form(...)):
+    conn = sqlite3.connect("transcripts.db")
+    c = conn.cursor()
+    c.execute("UPDATE transcripts SET tag = ? WHERE filename = ?", (tag, filename))
+    conn.commit()
+    conn.close()
+    return {"message": "Tag saved"}
 
-        if (!res.ok) {
-          const error = await res.json();
-          throw new Error(error.detail || "Question failed");
-        }
+# NEW: API route to get shared transcripts
+@app.get("/api/share/{filename}")
+async def get_shared_transcript(filename: str):
+    path = os.path.join("transcripts", filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Transcript not found")
+    with open(path, "r") as f:
+        return {"transcript": f.read()}
 
-        const data = await res.json();
-        
-        document.getElementById("answerText").textContent = data.answer;
-        
-        const sourcesBox = document.getElementById("sourcesBox");
-        sourcesBox.innerHTML = "";
-        
-        if (data.sources && data.sources.length > 0) {
-          data.sources.forEach(source => {
-            const sourceDiv = document.createElement("div");
-            sourceDiv.className = "source-block";
-            sourceDiv.innerHTML = `
-              <strong>Source:</strong> ${source.source || "Unknown"}
-              <div class="source-text">${source.text}</div>
-            `;
-            sourcesBox.appendChild(sourceDiv);
-          });
-        }
+# NEW: Analytics route
+@app.get("/api/stats")
+def get_stats():
+    from collections import Counter
+    with open("activity.log", "r") as f:
+        emails = [line.split("|")[1] for line in f.readlines()]
+    return dict(Counter(emails))
 
-        questionInput.value = "";
-      } catch (err) {
-        console.error("Question error:", err);
-        showToast("Question error: " + err.message, "error");
-      } finally {
-        spinner.style.display = "none";
-      }
-    }
+@app.post("/reset-password")
+async def reset_password(payload: dict):
+    email = payload.get("email")
+    password = payload.get("password")
+    code = payload.get("code")
+    if code != "smartai2024":
+        raise HTTPException(status_code=401, detail="Invalid reset code")
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("UPDATE users SET password = ? WHERE email = ?", (password, email))
+    conn.commit()
+    conn.close()
+    return {"message": "Password updated"}
 
-    function login() {
-      const email = document.getElementById("loginEmail").value;
-      const password = document.getElementById("loginPassword").value;
+@app.get("/api/download/all")
+async def download_all_transcripts(user=Depends(get_current_user)):
+    memory_file = io.BytesIO()
+    with ZipFile(memory_file, 'w') as zipf:
+        for filename in os.listdir(TRANSCRIPT_DIR):
+            if filename.endswith(".txt"):
+                filepath = os.path.join(TRANSCRIPT_DIR, filename)
+                zipf.write(filepath, arcname=filename)
+    memory_file.seek(0)
+    return StreamingResponse(memory_file, media_type="application/zip", headers={
+        "Content-Disposition": "attachment; filename=all_transcripts.zip"
+    })
 
-      fetch("/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      }).then(res => {
-        if (!res.ok) throw new Error("Login failed");
-        return res.json();
-      }).then(data => {
-        localStorage.setItem("token", data.access_token);
-        currentUser = email;
-        document.getElementById("loginBox").style.display = "none";
-        document.getElementById("appUI").style.display = "block";
-        document.getElementById("welcomeHeader").innerText = `Welcome, ${email}`;
-        if (email === "patrick@gridllc.net") {
-          document.getElementById("adminPanel").style.display = "block";
-        }
-        loadHistory();
-        showToast("Login successful", "success");
-      }).catch(err => {
-        showToast("Login error: " + err.message, "error");
-      });
-    }
+@app.get("/api/activity-log")
+async def get_activity_log(user=Depends(get_current_user)):
+    if user.email != "patrick@gridllc.net":
+        raise HTTPException(status_code=403, detail="Admins only")
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS activity (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT,
+            action TEXT,
+            filename TEXT,
+            timestamp TEXT
+        )
+    """)
+    c.execute("SELECT email, action, filename, timestamp FROM activity ORDER BY id DESC LIMIT 100")
+    rows = c.fetchall()
+    conn.close()
+    return {"log": rows}
 
-    function register() {
-      const full_name = document.getElementById("registerName").value;
-      const email = document.getElementById("registerEmail").value;
-      const password = document.getElementById("registerPassword").value;
-      const invite_code = document.getElementById("registerCode").value;
+def log_activity(email, action, filename=None):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS activity (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT,
+            action TEXT,
+            filename TEXT,
+            timestamp TEXT
+        )
+    """)
+    c.execute("INSERT INTO activity (email, action, filename, timestamp) VALUES (?, ?, ?, ?)",
+              (email, action, filename, datetime.utcnow().isoformat()))
+    conn.commit()
+    conn.close()
+    
+    # Also log to activity.log file for analytics
+    with open("activity.log", "a") as f:
+        f.write(f"{datetime.utcnow().isoformat()}|{email}|{action}|{filename or ''}\n")
 
-      fetch("/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      }).then(res => {
-        if (!res.ok) throw new Error("Registration failed");
-        return res.json();
-      }).then(() => {
-        showToast("Account created! Please login.", "success");
-        showLogin();
-      }).catch(err => {
-        showToast("Registration error: " + err.message, "error");
-      });
-    }
+@app.post("/register")
+def register(payload: LoginRequest, db: Session = Depends(get_db)):
+    register_user(db, payload.email, payload.password)
+    return {"message": "User registered successfully"}
 
-    function filterTranscripts() {
-      const query = document.getElementById("searchInput").value.toLowerCase();
-      const sortBy = document.getElementById("sortSelect").value;
-      let filtered = allTranscripts.filter(name => name.toLowerCase().includes(query));
-      if (sortBy === "newest") filtered.reverse();
+@app.post("/login")
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = authenticate_user(db, payload.email, payload.password)
+    token = create_access_token(data={"sub": user.email})
+    return {"access_token": token, "token_type": "bearer"}
 
-      const historyDiv = document.getElementById("transcriptHistory");
-      historyDiv.innerHTML = "<h3>Transcript History</h3>";
-      filtered.forEach(renderTranscriptItem);
-    }
+@app.get("/api/history")
+async def history(user=Depends(get_current_user)):
+    filenames = []
+    if os.path.exists(TRANSCRIPT_DIR):
+        for name in os.listdir(TRANSCRIPT_DIR):
+            if name.endswith(".txt"):
+                filenames.append(name.replace(".txt", ""))
+    return {"files": filenames}
 
-    function renderTranscriptItem(filename) {
-      const div = document.createElement("div");
-      div.className = "history-item";
+@app.get("/uploads/{filename}")
+async def get_uploaded_file(filename: str):
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    return JSONResponse(status_code=404, content={"error": "File not found"})
 
-      const nameSpan = document.createElement("span");
-      nameSpan.innerText = `📄 ${filename}`;
+@app.get("/static/{filename}")
+async def get_static_file(filename: str):
+    file_path = os.path.join(STATIC_DIR, filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    return JSONResponse(status_code=404, content={"error": "File not found"})
 
-      const previewBtn = document.createElement("button");
-      previewBtn.innerText = "Preview";
-      const previewBox = document.createElement("div");
-      previewBox.style.display = "none";
-      previewBox.style.marginTop = "5px";
-      previewBox.style.padding = "6px";
-      previewBox.style.border = "1px solid #ccc";
-      previewBox.style.borderRadius = "4px";
-      previewBox.style.background = "#f9f9f9";
-      previewBox.style.whiteSpace = "pre-wrap";
-
-      previewBtn.onclick = async () => {
-        if (previewBox.style.display === "none") {
-          const res = await fetch(`/api/transcript/${filename}`, {
-            headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
-          });
-          const data = await res.json();
-          previewBox.innerText = data.transcript || "[Empty]";
-          previewBox.style.display = "block";
-        } else {
-          previewBox.style.display = "none";
-        }
-      };
-
-      const downloadBtn = document.createElement("button");
-      downloadBtn.innerText = "Download";
-      downloadBtn.onclick = () => window.location.href = `/api/download/${filename}`;
-
-      const deleteBtn = document.createElement("button");
-      deleteBtn.innerText = "Delete";
-      deleteBtn.onclick = async () => {
-        if (confirm(`Delete ${filename}?`)) {
-          await fetch(`/api/delete/${filename}`, {
-            method: "DELETE",
-            headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
-          });
-          loadHistory();
-          showToast(`${filename} deleted.`, "info");
-        }
-      };
-
-      div.appendChild(nameSpan);
-      div.appendChild(previewBtn);
-      div.appendChild(downloadBtn);
-      div.appendChild(deleteBtn);
-      div.appendChild(previewBox);
-
-      document.getElementById("transcriptHistory").appendChild(div);
-    }
-
-    async function loadHistory() {
-      const res = await fetch("/api/history", {
-        headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
-      });
-      const data = await res.json();
-      allTranscripts = data.files || [];
-      filterTranscripts();
-    }
-
-    window.onload = () => {
-      const token = localStorage.getItem("token");
-      if (token) {
-        currentUser = token;
-        document.getElementById("loginBox").style.display = "none";
-        document.getElementById("appUI").style.display = "block";
-        document.getElementById("welcomeHeader").innerText = `Welcome, ${currentUser}`;
-        if (currentUser === "patrick@gridllc.net") {
-          document.getElementById("adminPanel").style.display = "block";
-        }
-        loadHistory();
-      } else {
-        document.getElementById("loginBox").style.display = "block";
-        document.getElementById("registerBox").style.display = "none";
-        document.getElementById("appUI").style.display = "none";
-      }
-    };
-  </script>
-</body>
-</html>
