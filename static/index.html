@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,76 +9,222 @@
   <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
   <style>
-    body.dark { background-color: #111; color: #eee; }
-    .dark input, .dark button { background-color: #222; color: #fff; border-color: #555; }
-    .dark .profile-box, .dark .source-block { background-color: #333; border-color: #555; }
-    .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #555; border-radius: 50%; animation: spin 1s linear infinite; margin-left: 10px; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    #answerText { white-space: pre-wrap; font-size: 1rem; line-height: 1.5; }
-    .source-block { margin-top: 10px; padding: 10px; border: 1px solid #aaa; border-radius: 6px; background: #f9f9f9; font-size: 0.9em; }
-    .source-text { margin-top: 5px; color: #333; cursor: pointer; }
-    .history-item { margin: 10px 0; padding: 5px; border-bottom: 1px solid #ccc; }
-    .history-item button { margin-left: 10px; }
-    #logout, #darkToggle, #profileToggle, #analyticsToggle { float: right; margin-left: 10px; }
-    #adminPanel, #analyticsPanel { margin-top: 20px; border: 1px solid #aaa; padding: 10px; display: none; }
-    #activityLog { max-height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-top: 10px; }
-    .profile-box { 
-      position: fixed; 
-      top: 50%; 
-      left: 50%; 
-      transform: translate(-50%, -50%); 
-      background: white; 
-      border: 2px solid #333; 
-      padding: 20px; 
-      border-radius: 8px; 
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
-      z-index: 1000; 
-      display: none; 
+    body.dark {
+      background-color: #111;
+      color: #eee;
+    }
+
+    .dark input,
+    .dark button {
+      background-color: #222;
+      color: #fff;
+      border-color: #555;
+    }
+
+    .dark .profile-box,
+    .dark .source-block {
+      background-color: #333;
+      border-color: #555;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #555;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    #answerText {
+      white-space: pre-wrap;
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+
+    .source-block {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #aaa;
+      border-radius: 6px;
+      background: #f9f9f9;
+      font-size: 0.9em;
+    }
+
+    .source-text {
+      margin-top: 5px;
+      color: #333;
+      cursor: pointer;
+    }
+
+    .history-item {
+      margin: 10px 0;
+      padding: 5px;
+      border-bottom: 1px solid #ccc;
+    }
+
+    .history-item button {
+      margin-left: 10px;
+    }
+
+    #logout,
+    #darkToggle,
+    #profileToggle,
+    #analyticsToggle {
+      float: right;
+      margin-left: 10px;
+    }
+
+    #adminPanel,
+    #analyticsPanel {
+      margin-top: 20px;
+      border: 1px solid #aaa;
+      padding: 10px;
+      display: none;
+    }
+
+    #activityLog {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-top: 10px;
+    }
+
+    .profile-box {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border: 2px solid #333;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      display: none;
       min-width: 300px;
     }
-    .profile-overlay { 
-      position: fixed; 
-      top: 0; 
-      left: 0; 
-      width: 100%; 
-      height: 100%; 
-      background: rgba(0,0,0,0.5); 
-      z-index: 999; 
-      display: none; 
+
+    .profile-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+      display: none;
     }
-    .profile-box h3 { margin-top: 0; }
-    .profile-box input, .profile-box label { display: block; margin: 10px 0; }
-    .profile-box input[type="text"], .profile-box input[type="email"] { width: 100%; padding: 8px; }
-    .profile-box input[type="checkbox"] { display: inline-block; margin-right: 8px; }
-    .profile-actions { margin-top: 15px; }
-    .profile-actions button { margin-right: 10px; }
-    .tag-input { display: inline-block; margin-left: 10px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; }
-    .tags-display { margin-top: 5px; }
-    .tag-badge { display: inline-block; background: #007bff; color: white; padding: 2px 6px; margin: 2px; border-radius: 3px; font-size: 0.8em; }
-    .analytics-section { margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #f9f9f9; }
-    .dark .analytics-section { background: #333; border-color: #555; }
-    .analytics-stat { display: inline-block; margin: 5px 10px; padding: 5px; background: #e9ecef; border-radius: 3px; }
-    .dark .analytics-stat { background: #444; }
+
+    .profile-box h3 {
+      margin-top: 0;
+    }
+
+    .profile-box input,
+    .profile-box label {
+      display: block;
+      margin: 10px 0;
+    }
+
+    .profile-box input[type="text"],
+    .profile-box input[type="email"] {
+      width: 100%;
+      padding: 8px;
+    }
+
+    .profile-box input[type="checkbox"] {
+      display: inline-block;
+      margin-right: 8px;
+    }
+
+    .profile-actions {
+      margin-top: 15px;
+    }
+
+    .profile-actions button {
+      margin-right: 10px;
+    }
+
+    .tag-input {
+      display: inline-block;
+      margin-left: 10px;
+      padding: 4px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .tags-display {
+      margin-top: 5px;
+    }
+
+    .tag-badge {
+      display: inline-block;
+      background: #007bff;
+      color: white;
+      padding: 2px 6px;
+      margin: 2px;
+      border-radius: 3px;
+      font-size: 0.8em;
+    }
+
+    .analytics-section {
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background: #f9f9f9;
+    }
+
+    .dark .analytics-section {
+      background: #333;
+      border-color: #555;
+    }
+
+    .analytics-stat {
+      display: inline-block;
+      margin: 5px 10px;
+      padding: 5px;
+      background: #e9ecef;
+      border-radius: 3px;
+    }
+
+    .dark .analytics-stat {
+      background: #444;
+    }
   </style>
 </head>
+
 <body>
   <!-- Profile Overlay -->
   <div class="profile-overlay" id="profileOverlay" onclick="toggleProfile()"></div>
-  
+
   <!-- Profile Box -->
   <div class="profile-box" id="profileBox">
     <h3>Profile Settings</h3>
     <label for="displayName">Display Name:</label>
     <input type="text" id="displayName" placeholder="Enter your display name" />
-    
+
     <label>
       <input type="checkbox" id="prefDark" /> Prefer Dark Mode
     </label>
-    
+
     <label>
       <input type="checkbox" id="emailNotifications" /> Email Notifications
     </label>
-    
+
     <div class="profile-actions">
       <button onclick="saveProfile()">Save Profile</button>
       <button onclick="toggleProfile()">Cancel</button>
@@ -142,14 +289,14 @@
       <div id="answerText"></div>
       <div id="sourcesBox"></div>
     </div>
-    
+
     <!-- Analytics Panel -->
     <div id="analyticsPanel">
       <h3>Analytics Dashboard</h3>
       <button onclick="loadAnalytics()">Refresh Analytics</button>
       <div id="analyticsContent"></div>
     </div>
-    
+
     <div id="adminPanel">
       <h3>Admin Panel</h3>
       <p>This section is only visible to admin users.</p>
@@ -171,7 +318,7 @@
     function toggleAnalytics() {
       const panel = document.getElementById("analyticsPanel");
       panel.style.display = panel.style.display === "none" ? "block" : "none";
-      
+
       if (panel.style.display === "block") {
         loadAnalytics();
       }
@@ -182,9 +329,9 @@
         const res = await fetch("/api/stats", {
           headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
         });
-        
+
         if (!res.ok) throw new Error("Failed to load analytics");
-        
+
         const data = await res.json();
         displayAnalytics(data);
       } catch (err) {
@@ -197,11 +344,11 @@
       content.innerHTML = `
         <div class="analytics-section">
           <h4>Email Activity</h4>
-          ${Object.entries(data).map(([email, count]) => 
-            `<div class="analytics-stat">
+          ${Object.entries(data).map(([email, count]) =>
+        `<div class="analytics-stat">
               <strong>${email}:</strong> ${count} activities
             </div>`
-          ).join('')}
+      ).join('')}
         </div>
       `;
     }
@@ -219,7 +366,7 @@
         });
 
         if (!res.ok) throw new Error("Failed to update tag");
-        
+
         showToast("Tag updated successfully!", "success");
         loadHistory(); // Refresh the list to show updated tags
       } catch (err) {
@@ -232,10 +379,10 @@
       const box = document.getElementById("profileBox");
       const overlay = document.getElementById("profileOverlay");
       const isVisible = box.style.display === "block";
-      
+
       box.style.display = isVisible ? "none" : "block";
       overlay.style.display = isVisible ? "none" : "block";
-      
+
       if (!isVisible) {
         loadProfile();
       }
@@ -245,7 +392,7 @@
       const displayName = localStorage.getItem("displayName") || "";
       const prefDark = localStorage.getItem("prefDark") === "true";
       const emailNotifications = localStorage.getItem("emailNotifications") === "true";
-      
+
       document.getElementById("displayName").value = displayName;
       document.getElementById("prefDark").checked = prefDark;
       document.getElementById("emailNotifications").checked = emailNotifications;
@@ -255,23 +402,23 @@
       const displayName = document.getElementById("displayName").value;
       const prefDark = document.getElementById("prefDark").checked;
       const emailNotifications = document.getElementById("emailNotifications").checked;
-      
+
       localStorage.setItem("displayName", displayName);
       localStorage.setItem("prefDark", prefDark);
       localStorage.setItem("emailNotifications", emailNotifications);
-      
+
       // Apply dark mode preference immediately
       if (prefDark) {
         document.body.classList.add("dark");
       } else {
         document.body.classList.remove("dark");
       }
-      
+
       // Update welcome header if display name is set
       if (displayName) {
         document.getElementById("welcomeHeader").innerText = `Welcome, ${displayName}`;
       }
-      
+
       showToast("Profile saved.", "success");
       toggleProfile();
     }
@@ -324,7 +471,7 @@
         });
 
         if (!res.ok) throw new Error("Reset failed");
-        
+
         showToast("Password updated!", "success");
         showLogin();
       } catch (err) {
@@ -335,7 +482,7 @@
     async function downloadAll() {
       try {
         showToast("Preparing download...", "info");
-        
+
         const response = await fetch("/api/download/all", {
           method: "GET",
           headers: {
@@ -349,21 +496,21 @@
 
         // Create a blob from the response
         const blob = await response.blob();
-        
+
         // Create a temporary URL for the blob
         const url = window.URL.createObjectURL(blob);
-        
+
         // Create a temporary anchor element to trigger download
         const a = document.createElement("a");
         a.href = url;
         a.download = "all_transcripts.zip";
         document.body.appendChild(a);
         a.click();
-        
+
         // Clean up
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        
+
         showToast("Download started!", "success");
       } catch (err) {
         console.error("Download error:", err);
@@ -376,9 +523,9 @@
         const res = await fetch("/api/activity-log", {
           headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
         });
-        
+
         if (!res.ok) throw new Error("Failed to load activity log");
-        
+
         const data = await res.json();
         const logDiv = document.getElementById("activityLog");
         logDiv.innerHTML = "<h4>Recent Activity</h4><ul>" +
@@ -420,7 +567,7 @@
 
         const result = await res.json();
         showToast("Upload and transcription successful!", "success");
-        
+
         // Check if email notifications are enabled and send notification
         if (localStorage.getItem("emailNotifications") === "true") {
           try {
@@ -441,7 +588,7 @@
             // Don't show error to user as main upload was successful
           }
         }
-        
+
         loadHistory();
         fileInput.value = ""; // Clear the file input
       } catch (err) {
@@ -452,60 +599,66 @@
       }
     }
 
+    
+
     async function askQuestion() {
       const questionInput = document.getElementById("questionInput");
       const question = questionInput.value.trim();
-      
-      if (!question) {
-        showToast("Please enter a question.", "error");
-        return;
-      }
+      if (!question) return showToast("Please enter a question.", "error");
+
+      const answerBox = document.getElementById("answerBox");
+      const answerText = document.getElementById("answerText");
+      const sourcesBox = document.getElementById("sourcesBox");
+      answerText.textContent = "";
+      sourcesBox.innerHTML = "";
 
       const spinner = document.getElementById("spinner");
       spinner.style.display = "inline-block";
 
-      try {
-        const res = await fetch("/ask", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + localStorage.getItem("token")
-          },
-          body: JSON.stringify({ question })
-        });
+      const response = await fetch("/ask", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + localStorage.getItem("token")
+        },
+        body: JSON.stringify({ question })
+      });
 
-        if (!res.ok) {
-          const error = await res.json();
-          throw new Error(error.detail || "Question failed");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        for (const line of chunk.split("\n\n")) {
+          if (!line.startsWith("data:")) continue;
+          const payload = JSON.parse(line.slice(5));
+
+          if (payload.type === "token") {
+            answerText.textContent += payload.data;
+          } else if (payload.type === "sources") {
+            payload.data.forEach(source => {
+              const block = document.createElement("div");
+              block.className = "source-block";
+              block.innerHTML = `<strong>Source:</strong> ${source.source || "Unknown"}
+                             <div class='source-text'>${source.text}</div>`;
+              sourcesBox.appendChild(block);
+            });
+          }
         }
-
-        const data = await res.json();
-        
-        document.getElementById("answerText").textContent = data.answer;
-        
-        const sourcesBox = document.getElementById("sourcesBox");
-        sourcesBox.innerHTML = "";
-        
-        if (data.sources && data.sources.length > 0) {
-          data.sources.forEach(source => {
-            const sourceDiv = document.createElement("div");
-            sourceDiv.className = "source-block";
-            sourceDiv.innerHTML = `
-              <strong>Source:</strong> ${source.source || "Unknown"}
-              <div class="source-text">${source.text}</div>
-            `;
-            sourcesBox.appendChild(sourceDiv);
-          });
-        }
-
-        questionInput.value = "";
-      } catch (err) {
-        console.error("Question error:", err);
-        showToast("Question error: " + err.message, "error");
-      } finally {
-        spinner.style.display = "none";
       }
+
+      spinner.style.display = "none";
+      questionInput.value = "";
     }
+
+
+
+
+
+
 
     function login() {
       const email = document.getElementById("loginEmail").value;
@@ -523,20 +676,20 @@
         currentUser = email;
         document.getElementById("loginBox").style.display = "none";
         document.getElementById("appUI").style.display = "block";
-        
+
         // Set welcome message based on display name or email
         const displayName = localStorage.getItem("displayName");
         document.getElementById("welcomeHeader").innerText = `Welcome, ${displayName || email}`;
-        
+
         if (email === "patrick@gridllc.net") {
           document.getElementById("adminPanel").style.display = "block";
         }
-        
+
         // Apply saved preferences
         if (localStorage.getItem("prefDark") === "true") {
           document.body.classList.add("dark");
         }
-        
+
         loadHistory();
         showToast("Login successful", "success");
       }).catch(err => {
@@ -582,7 +735,7 @@
     function renderTranscriptItem(item) {
       const filename = typeof item === 'string' ? item : item.filename;
       const tag = typeof item === 'object' ? item.tag : null;
-      
+
       const div = document.createElement("div");
       div.className = "history-item";
 
@@ -624,8 +777,8 @@
         navigator.clipboard.writeText(link);
         showToast("Shareable link copied!", "info");
       };
-      div.appendChild(shareBtn);  
-      
+      div.appendChild(shareBtn);
+
       const previewBox = document.createElement("div");
       previewBox.style.display = "none";
       previewBox.style.marginTop = "5px";
@@ -641,9 +794,9 @@
             const res = await fetch(`/api/transcript/${filename}`, {
               headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
             });
-            
+
             if (!res.ok) throw new Error("Failed to load transcript");
-            
+
             const data = await res.json();
             previewBox.innerText = data.transcript || "[Empty]";
             previewBox.style.display = "block";
@@ -670,9 +823,9 @@
               method: "DELETE",
               headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
             });
-            
+
             if (!res.ok) throw new Error("Delete failed");
-            
+
             loadHistory();
             showToast(`${filename} deleted.`, "info");
           } catch (err) {
@@ -698,9 +851,9 @@
         const res = await fetch("/api/history", {
           headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
         });
-        
+
         if (!res.ok) throw new Error("Failed to load history");
-        
+
         const data = await res.json();
         allTranscripts = data.files || [];
         filterTranscripts();
@@ -716,20 +869,20 @@
         currentUser = localStorage.getItem("userEmail") || "user";
         document.getElementById("loginBox").style.display = "none";
         document.getElementById("appUI").style.display = "block";
-        
+
         // Set welcome message based on display name or email
         const displayName = localStorage.getItem("displayName");
         document.getElementById("welcomeHeader").innerText = `Welcome, ${displayName || currentUser}`;
-        
+
         if (currentUser === "patrick@gridllc.net") {
           document.getElementById("adminPanel").style.display = "block";
         }
-        
+
         // Apply saved preferences
         if (localStorage.getItem("prefDark") === "true") {
           document.body.classList.add("dark");
         }
-        
+
         loadHistory();
       } else {
         document.getElementById("loginBox").style.display = "block";
@@ -739,19 +892,19 @@
     };
 
     // Close profile when clicking outside
-    document.addEventListener('click', function(event) {
+    document.addEventListener('click', function (event) {
       const profileBox = document.getElementById('profileBox');
       const profileButton = document.getElementById('profileToggle');
-      
-      if (profileBox.style.display === 'block' && 
-          !profileBox.contains(event.target) && 
-          event.target !== profileButton) {
+
+      if (profileBox.style.display === 'block' &&
+        !profileBox.contains(event.target) &&
+        event.target !== profileButton) {
         toggleProfile();
       }
     });
 
     // Handle Enter key in question input
-    document.addEventListener('keypress', function(event) {
+    document.addEventListener('keypress', function (event) {
       if (event.key === 'Enter') {
         const activeElement = document.activeElement;
         if (activeElement.id === 'questionInput') {
@@ -765,4 +918,5 @@
     });
   </script>
 </body>
+
 </html>

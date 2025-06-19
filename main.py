@@ -1,5 +1,6 @@
 import os
 import shutil
+import json
 import subprocess
 import traceback
 import io
@@ -15,13 +16,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
-
 from database import engine, get_db
 from models import Base
 from upload_processor import transcribe_audio, get_openai_client
 from pinecone_sdk import search_similar_chunks
 from auth import get_current_user, authenticate_user, register_user, create_access_token
-
+from email_utils import send_email_with_attachment
 
 load_dotenv()
 
@@ -135,26 +135,32 @@ async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user)
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 @app.post("/ask")
-async def ask_question(request: AskRequest, user=Depends(get_current_user)):
+async def stream_answer(request: AskRequest, user=Depends(get_current_user)):
     question = request.question
-    relevant_chunks = search_similar_chunks(question, top_k=5)
-    context_block = "\n\n".join([chunk["text"] for chunk in relevant_chunks])
-    system_prompt = (
+    chunks = search_similar_chunks(question, top_k=5)
+    context = "\n\n".join([c["text"] for c in chunks])
+    prompt = (
         "You are a helpful assistant. Use the following transcript snippets to answer the question.\n\n"
-        f"{context_block}\n\nQuestion: {question}"
+        f"{context}\n\nQuestion: {question}"
     )
+
     client = get_openai_client()
-    response = client.chat.completions.create(
+    stream = client.chat.completions.create(
         model="gpt-4",
-        messages=[{"role": "system", "content": system_prompt}],
+        messages=[{"role": "system", "content": prompt}],
         temperature=0.3,
-        max_tokens=500
+        stream=True
     )
-    answer = response.choices[0].message.content
+
+    def event_generator():
+        yield f"data: {json.dumps({'type': 'sources', 'data': chunks})}\n\n"
+        for chunk in stream:
+            if chunk.choices and chunk.choices[0].delta.content:
+                token = chunk.choices[0].delta.content
+                yield f"data: {json.dumps({'type': 'token', 'data': token})}\n\n"
 
     log_activity(user.email, "ask")
-
-    return {"answer": answer, "sources": relevant_chunks}
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 # NEW: API route to update transcript tags
 @app.post("/api/transcript/{filename}/tag")
