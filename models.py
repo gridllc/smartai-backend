@@ -1,74 +1,58 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Boolean
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSON
-from datetime import datetime
-from database import Base
+from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, UniqueConstraint
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
+
 
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(255), unique=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
-    full_name = Column(String(255))
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    files = relationship("FileUpload", back_populates="user")
-    questions = relationship("QASession", back_populates="user")
-
-    def __repr__(self):
-        return f"<User {self.email}>"
+    email = Column(String, unique=True, index=True, nullable=False)
+    password = Column(String, nullable=False)
 
 
-class FileUpload(Base):
-    __tablename__ = "files"
+class Activity(Base):
+    __tablename__ = "activity"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    original_filename = Column(String(255), nullable=False)
-    stored_filename = Column(String(255), nullable=False)
-    file_size = Column(Integer)
-    mime_type = Column(String(100))
-    storage_url = Column(Text)
-    upload_status = Column(String(50), default="pending")
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    user = relationship("User", back_populates="files")
-    transcript = relationship("Transcript", back_populates="file", uselist=False)
-
-    def __repr__(self):
-        return f"<FileUpload {self.original_filename}>"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String, nullable=False)
+    action = Column(String, nullable=False)
+    filename = Column(String)
+    timestamp = Column(String, nullable=False)
+    ip_address = Column(String)
+    user_agent = Column(String)
 
 
-class Transcript(Base):
-    __tablename__ = "transcripts"
+class QAHistory(Base):
+    __tablename__ = "qa_history"
 
-    id = Column(Integer, primary_key=True, index=True)
-    file_id = Column(Integer, ForeignKey("files.id"))
-    transcript_text = Column(Text)
-    summary = Column(Text)
-    processing_status = Column(String(50), default="pending")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow)
-
-    file = relationship("FileUpload", back_populates="transcript")
-
-    def __repr__(self):
-        return f"<Transcript for file_id={self.file_id}>"
-
-
-class QASession(Base):
-    __tablename__ = "qa_sessions"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String, nullable=False)
     question = Column(Text, nullable=False)
-    answer = Column(Text)
-    source_files = Column(JSON)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    answer = Column(Text, nullable=False)
+    timestamp = Column(String, nullable=False)
+    sources_used = Column(Text)  # JSON string
 
-    user = relationship("User", back_populates="questions")
 
-    def __repr__(self):
-        return f"<QASession for user_id={self.user_id}>"
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String, nullable=False)
+    token_hash = Column(String, nullable=False)
+    created_at = Column(String, nullable=False)
+    expires_at = Column(String, nullable=False)
+    used = Column(Boolean, default=False)
+
+
+class UserFile(Base):
+    __tablename__ = "user_files"
+    __table_args__ = (UniqueConstraint(
+        "email", "filename", name="uix_email_filename"),)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String, nullable=False)
+    filename = Column(String, nullable=False)
+    file_size = Column(Integer)
+    upload_timestamp = Column(String, nullable=False)

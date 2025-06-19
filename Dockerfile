@@ -1,25 +1,27 @@
+# Use a base image with Python and system dependencies
 FROM python:3.10-slim
 
-# Install system dependencies
-RUN apt-get update && \
-    apt-get install -y git ffmpeg gcc && \
-    apt-get clean
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # Set working directory
 WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y ffmpeg git build-essential libpq-dev && \
+    apt-get clean
 
 # Copy project files
 COPY . .
 
 # Install Python dependencies
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
 
-# Force rebuild marker
-# Rebuild triggered to ensure psycopg2-binary is installed properly
-
-# Expose port used by FastAPI
+# Expose port for FastAPI app
 EXPOSE 10000
 
-# Start the FastAPI app
+# Run the application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]

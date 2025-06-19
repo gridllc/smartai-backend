@@ -1,0 +1,8 @@
+{
+  "python.defaultInterpreterPath": "C:/Users/pgrif/AI_Projects/smartai_backend/venv310/Scripts/python.exe",
+  "python.formatting.provider": "black",
+  "editor.formatOnSave": true,
+  "editor.tabSize": 4,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false
+}

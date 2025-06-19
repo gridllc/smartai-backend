@@ -2,7 +2,11 @@ services:
   - type: web
     name: smartai-backend
     env: docker
-    plan: free
+    repo: https://github.com/gridllc/smartai-backend
+    branch: main
+    plan: starter
+    region: oregon
+    dockerContext: .
     dockerfilePath: ./Dockerfile
     envVars:
       - key: OPENAI_API_KEY
@@ -10,7 +14,7 @@ services:
       - key: PINECONE_API_KEY
         sync: false
       - key: PINECONE_ENVIRONMENT
-        sync: false
+        value: us-east-1-aws
       - key: EMAIL_USER
         sync: false
       - key: EMAIL_PASS
