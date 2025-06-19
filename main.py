@@ -21,7 +21,7 @@ from models import Base
 from upload_processor import transcribe_audio, get_openai_client
 from pinecone_sdk import search_similar_chunks
 from auth import get_current_user, authenticate_user, register_user, create_access_token
-from utils import send_email_with_attachment  # helper function
+
 
 load_dotenv()
 
@@ -284,4 +284,11 @@ async def get_static_file(filename: str):
     if os.path.exists(file_path):
         return FileResponse(file_path)
     return JSONResponse(status_code=404, content={"error": "File not found"})
-
+   
+@app.get("/share/{filename}")
+async def share_transcript(filename: str):
+    path = os.path.join("transcripts", filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Transcript not found")
+    with open(path, "r", encoding="utf-8") as f:  # <- Fixed indentation
+        return {"transcript": f.read()}
