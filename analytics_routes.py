@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
-import sqlite3
-from datetime import datetime
+from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
 from database import get_db
 from auth import get_current_user
 from config import settings
+from models import ActivityLog, UserFile
 
 router = APIRouter()
 
@@ -13,63 +14,61 @@ def is_admin_user(email: str) -> bool:
 
 
 @router.get("/api/stats")
-async def get_stats(user=Depends(get_current_user)):
+async def get_stats(user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not is_admin_user(user.email):
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    with sqlite3.connect(settings.db_path) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+    # Get user activity counts
+    user_activity = db.query(
+        ActivityLog.email,
+        db.query(ActivityLog).filter(ActivityLog.email ==
+                                     ActivityLog.email).count().label("activity_count")
+    ).group_by(ActivityLog.email).all()
 
-        # Get user activity counts
-        cursor.execute("""
-            SELECT email, COUNT(*) as activity_count 
-            FROM activity 
-            GROUP BY email 
-            ORDER BY activity_count DESC
-        """)
-        user_activity = [dict(row) for row in cursor.fetchall()]
+    # Convert to list of dicts
+    user_activity_list = [{"email": email, "activity_count": count}
+                          for email, count in user_activity]
 
-        # Get upload statistics
-        cursor.execute("""
-            SELECT 
-                COUNT(*) as total_files,
-                SUM(file_size) as total_size,
-                AVG(file_size) as avg_size
-            FROM user_files
-        """)
-        file_stats = dict(cursor.fetchone())
+    # Get upload statistics
+    file_stats = db.query(
+        db.query(UserFile).count().label("total_files"),
+        db.query(db.func.sum(UserFile.file_size)).label("total_size"),
+        db.query(db.func.avg(UserFile.file_size)).label("avg_size")
+    ).first()._asdict()
 
-        # Get recent activity
-        cursor.execute("""
-            SELECT action, COUNT(*) as count 
-            FROM activity 
-            WHERE timestamp > datetime('now', '-7 days')
-            GROUP BY action
-        """)
-        recent_activity = [dict(row) for row in cursor.fetchall()]
+    # Get recent activity
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    recent_activity_query = db.query(
+        ActivityLog.action,
+        db.func.count(ActivityLog.action).label("count")
+    ).filter(ActivityLog.timestamp > seven_days_ago).group_by(ActivityLog.action).all()
+
+    recent_activity = [
+        {"action": action, "count": count} for action, count in recent_activity_query
+    ]
 
     return {
-        "user_activity": user_activity,
+        "user_activity": user_activity_list,
         "file_statistics": file_stats,
         "recent_activity": recent_activity
     }
 
 
 @router.get("/api/activity-log")
-async def get_activity_log(user=Depends(get_current_user)):
+async def get_activity_log(user=Depends(get_current_user), db: Session = Depends(get_db)):
     if not is_admin_user(user.email):
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    with sqlite3.connect(settings.db_path) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT email, action, filename, timestamp, ip_address 
-            FROM activity 
-            ORDER BY id DESC 
-            LIMIT 100
-        """)
-        log_entries = [dict(row) for row in cursor.fetchall()]
+    log_entries = db.query(ActivityLog).order_by(
+        ActivityLog.id.desc()).limit(100).all()
+    log_list = [
+        {
+            "email": entry.email,
+            "action": entry.action,
+            "filename": entry.filename,
+            "timestamp": entry.timestamp.isoformat(),
+            "ip_address": entry.ip_address
+        } for entry in log_entries
+    ]
 
-    return {"log": log_entries}
+    return {"log": log_list}

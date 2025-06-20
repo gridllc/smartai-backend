@@ -1,36 +1,35 @@
-from email_utils import send_email_with_attachment
-from auth import get_current_user, authenticate_user, register_user, create_access_token
-from pinecone_sdk import search_similar_chunks
-from upload_processor import transcribe_audio, get_openai_client
-from models import Base
-from database import engine, get_db
-import os
-import shutil
-import subprocess
-import traceback
-import io
-import sqlite3
-import json
-from datetime import datetime
-from collections import Counter
-from zipfile import ZipFile
-
-from fastapi import FastAPI, UploadFile, Depends, HTTPException
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-from starlette.background import BackgroundTask
 from transcription_routes import router as transcription_router
-app.include_router(transcription_router)
+from passlib.context import CryptContext
+from starlette.background import BackgroundTask
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from pydantic_settings import BaseSettings
+from typing import List
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI, UploadFile, Depends, HTTPException
+from datetime import datetime
+import json
+import traceback
+import subprocess
+import shutil
+import os
+from database import engine, get_db, SessionLocal
+from models import Base, Activity, User
+from upload_processor import transcribe_audio, get_openai_client
+from pinecone_sdk import search_similar_chunks
+from auth import get_current_user, authenticate_user, register_user, create_access_token
+from email_utils import send_email_with_attachment
+from config import settings
+from qa_handler import router as qa_router
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables first
 
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-UPLOAD_DIR = "uploads"
-TRANSCRIPT_DIR = "transcripts"
-STATIC_DIR = "static"
-DB_PATH = "transcripts.db"
-ACTIVITY_LOG_PATH = "activity.log"
+# Pydantic models
 
 
 class AskRequest(BaseModel):
@@ -47,115 +46,163 @@ class ResetPasswordRequest(BaseModel):
     password: str
     code: str
 
-
-def create_db_tables():
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS activity (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT,
-                action TEXT,
-                filename TEXT,
-                timestamp TEXT
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS qa_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT,
-                question TEXT,
-                answer TEXT,
-                timestamp TEXT
-            )
-        """)
-        conn.commit()
+# Configuration class
 
 
-app = FastAPI()
+class Settings(BaseSettings):
+    upload_dir: str = "uploads"
+    transcript_dir: str = "transcripts"
+    static_dir: str = "static"
+    db_path: str = "transcripts.db"
+    activity_log_path: str = "activity.log"
+    max_file_size: int = 100_000_000
+    allowed_extensions: List[str] = [
+        ".wav", ".mp3", ".m4a", ".flac", ".ogg", ".mp4", ".mov", ".mkv", ".avi"]
+    admin_emails: List[str] = ["your@email.com"]
 
+    class Config:
+        env_file = ".env"
+
+
+# ✅ Create settings instance here
+settings = Settings()
+
+# Now use:
+os.makedirs(settings.upload_dir, exist_ok=True)
+
+# FastAPI app initialization
+app = FastAPI(title="SmartAI Transcription Service", version="2.0.0")
+
+# Create necessary directories
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(TRANSCRIPT_DIR, exist_ok=True)
 os.makedirs(STATIC_DIR, exist_ok=True)
 
+# Initialize database
 Base.metadata.create_all(bind=engine)
-create_db_tables()
 
+# Mount static files
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Configure appropriately for production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Include routers
+app.include_router(qa_router)
+app.include_router(transcription_router)
 
-def log_activity(email: str, action: str, filename: str = None):
-    timestamp = datetime.utcnow().isoformat()
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO activity (email, action, filename, timestamp) VALUES (?, ?, ?, ?)",
-            (email, action, filename, timestamp)
-        )
-        conn.commit()
-    with open(ACTIVITY_LOG_PATH, "a") as f:
-        f.write(f"{timestamp}|{email}|{action}|{filename or ''}\n")
+# Utility functions
+
+
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt."""
+    return pwd_context.hash(password)
+
+
+def log_activity(email: str, action: str, filename: str = None, db: Session = None):
+    """Log user activity to database and file."""
+    if db is None:
+        return
+
+    timestamp = datetime.utcnow()
+
+    # Log to database
+    new_entry = Activity(
+        email=email,
+        action=action,
+        filename=filename,
+        timestamp=timestamp.isoformat()
+    )
+    db.add(new_entry)
+    db.commit()
+
+    # Log to file (optional backup)
+    try:
+        with open(ACTIVITY_LOG_PATH, "a") as f:
+            f.write(
+                f"{timestamp.isoformat()}|{email}|{action}|{filename or ''}\n")
+    except Exception as e:
+        print(f"Warning: Failed to write to activity log file: {e}")
+
+# Routes
 
 
 @app.get("/")
 def read_root():
+    """Serve the main application page."""
     return FileResponse("static/index.html")
 
 
 @app.post("/register")
 def register(payload: LoginRequest, db: Session = Depends(get_db)):
-    register_user(db, payload.email, payload.password)
-    return {"message": "User registered successfully"}
+    """Register a new user."""
+    try:
+        # Hash the password before storing
+        hashed_password = hash_password(payload.password)
+        register_user(db, payload.email, hashed_password)
+        log_activity(payload.email, "USER_REGISTERED", db=db)
+        return {"message": "User registered successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/login")
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    user = authenticate_user(db, payload.email, payload.password)
-    token = create_access_token(data={"sub": user.email})
-    return {"access_token": token, "token_type": "bearer"}
+    """Authenticate user and return access token."""
+    try:
+        user = authenticate_user(db, payload.email, payload.password)
+        token = create_access_token(data={"sub": user.email})
+        log_activity(payload.email, "USER_LOGIN", db=db)
+        return {"access_token": token, "token_type": "bearer"}
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
 
 @app.post("/upload-and-transcribe")
-async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user)):
+async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Upload a file and transcribe it."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+
     try:
-        file_location = os.path.join(UPLOAD_DIR, file.filename)
-        with open(file_location, "wb") as buffer:
+        # Sanitize filename
+        filename = os.path.basename(file.filename)
+        upload_path = os.path.join(settings.upload_dir, filename)
+
+        # Save uploaded file
+        with open(upload_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        file_ext = os.path.splitext(file.filename)[1].lower()
-        audio_file_path = file_location
+        ext = os.path.splitext(filename)[1].lower()
+        audio_path = upload_path
 
-        if file_ext in [".mp4", ".mov", ".mkv", ".avi"]:
-            audio_file_path = file_location.rsplit(
-                ".", 1)[0] + "_converted.wav"
-            try:
-                subprocess.run(
-                    ["ffmpeg", "-y", "-i", file_location, "-vn", "-acodec",
-                        "pcm_s16le", "-ar", "16000", "-ac", "1", audio_file_path],
-                    check=True, capture_output=True, text=True
-                )
-            except subprocess.CalledProcessError as e:
-                raise HTTPException(
-                    status_code=500, detail=f"Audio extraction failed: {e.stderr}")
-        elif file_ext not in [".wav", ".mp3", ".m4a", ".flac", ".ogg"]:
+        # Convert video files to audio
+        if ext in [".mp4", ".mov", ".mkv", ".avi"]:
+            audio_path = upload_path.rsplit(".", 1)[0] + "_converted.wav"
+            subprocess.run([
+                "ffmpeg", "-y", "-i", upload_path, "-vn",
+                "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", audio_path
+            ], check=True, capture_output=True, text=True)
+        elif ext not in settings.allowed_extensions:
             raise HTTPException(
-                status_code=400, detail=f"Unsupported file format: {file_ext}")
+                status_code=400, detail=f"Unsupported file format: {ext}")
 
-        transcript = transcribe_audio(audio_file_path)
-        txt_path = os.path.join(
-            TRANSCRIPT_DIR, os.path.basename(audio_file_path) + ".txt")
+        # Transcribe audio
+        transcript = transcribe_audio(audio_path)
+
+        # Save transcript
+        txt_path = os.path.join(settings.transcript_dir, filename + ".txt")
         with open(txt_path, "w", encoding="utf-8") as f:
             f.write(transcript)
 
+        # Generate summary
         client = get_openai_client()
         summary_response = client.chat.completions.create(
             model="gpt-4",
@@ -168,139 +215,139 @@ async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user)
         )
         summary = summary_response.choices[0].message.content.strip()
 
-        try:
-            send_email_with_attachment(
-                to_email=user.email,
-                subject="Your SmartAI Transcript",
-                body=f"Attached is your transcript for file: {file.filename}\n\nSummary:\n{summary}",
-                file_path=txt_path
-            )
-        except Exception as email_error:
-            print(f"⚠️ Email sending failed: {email_error}")
+        # Log activity
+        log_activity(user.email, "FILE_TRANSCRIBED", filename, db=db)
 
-        log_activity(user.email, "upload", file.filename)
-        return {"filename": file.filename, "transcript": transcript, "summary": summary}
+        return {
+            "filename": filename,
+            "transcript": transcript,
+            "summary": summary
+        }
 
-    except HTTPException:
-        raise
+    except subprocess.CalledProcessError as e:
+        error_msg = f"FFmpeg error: {e.stderr if e.stderr else 'Unknown error'}"
+        raise HTTPException(status_code=500, detail=error_msg)
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(
-            status_code=500, detail=f"An unexpected error occurred during upload: {str(e)}")
+            status_code=500, detail=f"Error during upload: {str(e)}")
+    finally:
+        # Clean up temporary files
+        try:
+            if os.path.exists(upload_path):
+                os.remove(upload_path)
+            if audio_path != upload_path and os.path.exists(audio_path):
+                os.remove(audio_path)
+        except Exception as e:
+            print(f"Warning: Failed to clean up temporary files: {e}")
 
 
 @app.post("/ask")
-async def stream_answer(request: AskRequest, user=Depends(get_current_user)):
+async def ask_question(request: AskRequest, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Ask a question about the transcribed content."""
     question = request.question
-    chunks = search_similar_chunks(question, top_k=5)
-    context = "\n\n".join([c["text"] for c in chunks])
-    prompt = f"You are a helpful assistant. Use the following transcript snippets to answer the question.\n\n{context}\n\nQuestion: {question}"
 
-    client = get_openai_client()
-    stream = client.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "system", "content": prompt}],
-        temperature=0.3,
-        stream=True
-    )
+    if not question.strip():
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
 
-    answer_accumulator = []
+    try:
+        # Search for relevant chunks
+        chunks = search_similar_chunks(question, top_k=5)
+        context = "\n\n".join([c["text"] for c in chunks])
 
-    def event_generator():
-        yield f"data: {json.dumps({'type': 'sources', 'data': chunks})}\n\n"
-        for chunk in stream:
-            if chunk.choices and chunk.choices[0].delta.content:
-                token = chunk.choices[0].delta.content
-                answer_accumulator.append(token)
-                yield f"data: {json.dumps({'type': 'token', 'data': token})}\n\n"
+        # Create prompt
+        prompt = f"""You are a helpful assistant. Use the following transcript snippets to answer the question.
 
-    def save_qa_history_task():
-        answer = ''.join(answer_accumulator).strip()
-        if question and answer:
-            with sqlite3.connect(DB_PATH) as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "INSERT INTO qa_history (email, question, answer, timestamp) VALUES (?, ?, ?, ?)",
-                    (user.email, question, answer, datetime.utcnow().isoformat())
-                )
-                conn.commit()
+Context:
+{context}
 
-    log_activity(user.email, "ask")
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        background=BackgroundTask(save_qa_history_task)
-    )
+Question: {question}
 
+Please provide a helpful and accurate answer based on the context provided."""
 
-@app.get("/api/qa-history")
-async def get_qa_history(user=Depends(get_current_user)):
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT question, answer, timestamp FROM qa_history WHERE email = ? ORDER BY id DESC LIMIT 50",
-            (user.email,)
+        # Get streaming response from OpenAI
+        client = get_openai_client()
+        stream = client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "system", "content": prompt}],
+            temperature=0.3,
+            stream=True
         )
-        history = [dict(row) for row in cursor.fetchall()]
-    return {"history": history}
 
+        answer_accumulator = []
 
-@app.get("/api/share/{filename}")
-async def get_shared_transcript(filename: str):
-    path = os.path.join(TRANSCRIPT_DIR, filename)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="Transcript not found")
-    with open(path, "r", encoding="utf-8") as f:
-        content = f.read()
-    return {"transcript": content}
+        def event_generator():
+            """Generate server-sent events for streaming response."""
+            # Send sources first
+            yield f"data: {json.dumps({'type': 'sources', 'data': chunks})}\n\n"
 
+            # Stream the answer
+            for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    token = chunk.choices[0].delta.content
+                    answer_accumulator.append(token)
+                    yield f"data: {json.dumps({'type': 'token', 'data': token})}\n\n"
 
-@app.get("/api/stats")
-async def get_stats(user=Depends(get_current_user)):
-    if not os.path.exists(ACTIVITY_LOG_PATH):
-        return {"error": "Activity log not found."}
-    with open(ACTIVITY_LOG_PATH, "r") as f:
-        email_counts = Counter(line.split("|")[1] for line in f if "|" in line)
-    return dict(email_counts)
+            # Send end signal
+            yield f"data: {json.dumps({'type': 'end'})}\n\n"
+
+        def save_history():
+            """Save Q&A history to database."""
+            try:
+                from models import QAHist
+                db_session = SessionLocal()
+                db_session.add(QAHist(
+                    email=user.email,
+                    question=question,
+                    answer="".join(answer_accumulator).strip(),
+                    timestamp=datetime.utcnow()
+                ))
+                db_session.commit()
+                db_session.close()
+
+                # Log activity
+                log_activity(user.email, "QUESTION_ASKED", db=db)
+            except Exception as e:
+                print(f"Error saving Q&A history: {e}")
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            background=BackgroundTask(save_history)
+        )
+
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500, detail=f"Error processing question: {str(e)}")
 
 
 @app.post("/reset-password")
-async def reset_password(payload: ResetPasswordRequest):
-    if payload.code != "smartai2024":
+async def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Reset user password with verification code."""
+    # Verify reset code
+    if payload.code != "smartai2024":  # Consider using a more secure system
         raise HTTPException(status_code=401, detail="Invalid reset code")
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE users SET password = ? WHERE email = ?",
-            (payload.password, payload.email)
-        )
-        conn.commit()
-    return {"message": "Password updated successfully"}
 
+    # Find user
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-@app.get("/api/download/all")
-async def download_all_transcripts(user=Depends(get_current_user)):
-    memory_file = io.BytesIO()
-    with ZipFile(memory_file, 'w') as zipf:
-        for filename in os.listdir(TRANSCRIPT_DIR):
-            if filename.endswith(".txt"):
-                filepath = os.path.join(TRANSCRIPT_DIR, filename)
-                zipf.write(filepath, arcname=filename)
-    memory_file.seek(0)
-    headers = {"Content-Disposition": "attachment; filename=all_transcripts.zip"}
-    return StreamingResponse(memory_file, media_type="application/zip", headers=headers)
+    try:
+        # Hash new password and update
+        user.password = hash_password(payload.password)
+        db.commit()
 
+        # Log activity
+        log_activity(payload.email, "PASSWORD_RESET", db=db)
 
-@app.get("/api/activity-log")
-async def get_activity_log(user=Depends(get_current_user)):
-    if user.email != "patrick@gridllc.net":
+        return {"message": "Password updated successfully"}
+    except Exception as e:
+        db.rollback()
         raise HTTPException(
-            status_code=403, detail="Forbidden: Admin access required.")
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT email, action, filename, timestamp FROM activity ORDER BY id DESC LIMIT 100")
-        log_entries = [dict(row) for row in cursor.fetchall()]
-    return {"log": log_entries}
+            status_code=500, detail="Failed to update password")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

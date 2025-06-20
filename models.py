@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, JSON
 from sqlalchemy.ext.declarative import declarative_base
+from datetime import datetime
 
 Base = declarative_base()
 
@@ -12,47 +13,34 @@ class User(Base):
     password = Column(String, nullable=False)
 
 
-class Activity(Base):
+class ActivityLog(Base):
     __tablename__ = "activity"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, index=True)
     email = Column(String, nullable=False)
     action = Column(String, nullable=False)
     filename = Column(String)
-    timestamp = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
     ip_address = Column(String)
     user_agent = Column(String)
+
+
+class UserFile(Base):
+    __tablename__ = "user_files"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, nullable=False)
+    filename = Column(String, nullable=False)
+    file_size = Column(Integer)
+    upload_timestamp = Column(DateTime, default=datetime.utcnow)
 
 
 class QAHistory(Base):
     __tablename__ = "qa_history"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, index=True)
     email = Column(String, nullable=False)
     question = Column(Text, nullable=False)
     answer = Column(Text, nullable=False)
-    timestamp = Column(String, nullable=False)
-    sources_used = Column(Text)  # JSON string
-
-
-class PasswordResetToken(Base):
-    __tablename__ = "password_reset_tokens"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    email = Column(String, nullable=False)
-    token_hash = Column(String, nullable=False)
-    created_at = Column(String, nullable=False)
-    expires_at = Column(String, nullable=False)
-    used = Column(Boolean, default=False)
-
-
-class UserFile(Base):
-    __tablename__ = "user_files"
-    __table_args__ = (UniqueConstraint(
-        "email", "filename", name="uix_email_filename"),)
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    email = Column(String, nullable=False)
-    filename = Column(String, nullable=False)
-    file_size = Column(Integer)
-    upload_timestamp = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    sources_used = Column(JSON)  # Stored as JSON array
