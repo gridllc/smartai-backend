@@ -2,7 +2,6 @@ from transcription_routes import router as transcription_router
 from passlib.context import CryptContext
 from starlette.background import BackgroundTask
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
