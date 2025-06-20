@@ -2,7 +2,7 @@ from transcription_routes import router as transcription_router
 from passlib.context import CryptContext
 from starlette.background import BackgroundTask
 from sqlalchemy.orm import Session
-from pydantic_settings import BaseSettings
+from pydantic import BaseModel  # Keep this for regular Pydantic models
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -20,7 +20,7 @@ from upload_processor import transcribe_audio, get_openai_client
 from pinecone_sdk import search_similar_chunks
 from auth import get_current_user, authenticate_user, register_user, create_access_token
 from email_utils import send_email_with_attachment
-from config import settings
+from config import settings  # Import the settings instance from config.py
 from qa_handler import router as qa_router
 from dotenv import load_dotenv
 load_dotenv()  # Load environment variables first
@@ -28,7 +28,7 @@ load_dotenv()  # Load environment variables first
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Pydantic models
+# Pydantic models (these use BaseModel, not BaseSettings)
 
 
 class AskRequest(BaseModel):
@@ -45,44 +45,21 @@ class ResetPasswordRequest(BaseModel):
     password: str
     code: str
 
-# Configuration class
 
-
-class Settings(BaseSettings):
-    upload_dir: str = "uploads"
-    transcript_dir: str = "transcripts"
-    static_dir: str = "static"
-    db_path: str = "transcripts.db"
-    activity_log_path: str = "activity.log"
-    max_file_size: int = 100_000_000
-    allowed_extensions: List[str] = [
-        ".wav", ".mp3", ".m4a", ".flac", ".ogg", ".mp4", ".mov", ".mkv", ".avi"]
-    admin_emails: List[str] = ["your@email.com"]
-
-    class Config:
-        env_file = ".env"
-
-
-# ✅ Create settings instance here
-settings = Settings()
-
-# Now use:
+# Now use settings from config.py
 os.makedirs(settings.upload_dir, exist_ok=True)
+os.makedirs(settings.transcript_dir, exist_ok=True)
+os.makedirs(settings.static_dir, exist_ok=True)
 
 # FastAPI app initialization
 app = FastAPI(title="SmartAI Transcription Service", version="2.0.0")
-
-# Create necessary directories
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(TRANSCRIPT_DIR, exist_ok=True)
-os.makedirs(STATIC_DIR, exist_ok=True)
 
 # Initialize database
 Base.metadata.create_all(bind=engine)
 
 # Mount static files
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
+app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
 
 # CORS middleware
 app.add_middleware(
@@ -124,7 +101,7 @@ def log_activity(email: str, action: str, filename: str = None, db: Session = No
 
     # Log to file (optional backup)
     try:
-        with open(ACTIVITY_LOG_PATH, "a") as f:
+        with open(settings.activity_log_path, "a") as f:
             f.write(
                 f"{timestamp.isoformat()}|{email}|{action}|{filename or ''}\n")
     except Exception as e:
