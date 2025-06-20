@@ -19,3 +19,21 @@ services:
         sync: false
       - key: EMAIL_PASS
         sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: ACTIVITY_LOG_PATH
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: DB_PATH
+        sync: false
+      - key: STATIC_DIR
+        sync: false
+      - key: TRANSCRIPT_DIR
+        sync: false
+      - key: UPLOAD_DIR
+        sync: false
+      - key: MAX_FILE_SIZE
+        sync: false
