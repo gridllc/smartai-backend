@@ -2,6 +2,7 @@ from transcription_routes import router as transcription_router
 from passlib.context import CryptContext
 from starlette.background import BackgroundTask
 from sqlalchemy.orm import Session
+from datetime import datetime
 from pydantic import BaseModel  # Keep this for regular Pydantic models
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,7 +16,7 @@ import subprocess
 import shutil
 import os
 from database import engine, get_db, SessionLocal
-from models import Base, Activity, User
+from models import Base, ActivityLog, UserFile, QAHistory
 from upload_processor import transcribe_audio, get_openai_client
 from pinecone_sdk import search_similar_chunks
 from auth import get_current_user, authenticate_user, register_user, create_access_token
