@@ -10,7 +10,8 @@ from datetime import datetime
 
 from database import get_db
 from auth import get_current_user
-from upload_processor import sanitize_filename, transcribe_audio, get_openai_client
+from upload_processor import transcribe_audio, get_openai_client
+from utils import sanitize_filename
 from pinecone_sdk import search_similar_chunks
 from config import settings
 
