@@ -9,15 +9,16 @@ from fastapi.responses import StreamingResponse
 from zipfile import ZipFile
 import io
 import aiofiles
+from typing import Dict, List, Any
 
 router = APIRouter()
 
 
-@router.get("/api/transcripts")
+@router.get("/api/transcripts", response_model=None)
 async def get_transcript_list(
     user=Depends(get_current_user),
     db: Session = Depends(get_db)
-):
+) -> Dict[str, List[Dict[str, Any]]]:
     files = db.query(UserFile).filter(UserFile.email == user.email).order_by(
         UserFile.upload_timestamp.desc()).all()
     return {
@@ -31,8 +32,8 @@ async def get_transcript_list(
     }
 
 
-@router.get("/api/share/{filename}")
-async def get_shared_transcript(filename: str):
+@router.get("/api/share/{filename}", response_model=None)
+async def get_shared_transcript(filename: str) -> Dict[str, str]:
     safe_filename = os.path.basename(filename)
     path = os.path.join(settings.transcript_dir, safe_filename)
 

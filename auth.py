@@ -1,12 +1,13 @@
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from models import User
 from jose import jwt
 from datetime import datetime, timedelta
+from database import get_db
 import os
 from dotenv import load_dotenv
-from fastapi import Depends, Header
 
 load_dotenv()
 
@@ -16,6 +17,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+security = HTTPBearer()
 
 
 def verify_password(plain_password, hashed_password):
@@ -40,13 +42,10 @@ def authenticate_user(db: Session, email: str, password: str):
     return user
 
 
-def get_current_user(token: str = None, db: Session = None):
-    from fastapi import Depends, Header
-    from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-    security = HTTPBearer()
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
     try:
         payload = jwt.decode(credentials.credentials,
                              SECRET_KEY, algorithms=[ALGORITHM])
