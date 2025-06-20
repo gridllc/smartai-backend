@@ -1,3 +1,4 @@
+
 from pydantic_settings import BaseSettings
 from pydantic import Field, validator
 from typing import List, Union
@@ -12,11 +13,11 @@ class Settings(BaseSettings):
     # OpenAI
     openai_api_key: str = Field(..., env="OPENAI_API_KEY")
 
-    # Email configuration
-    email_host: str = Field(..., env="EMAIL_HOST")
-    email_port: int = Field(..., env="EMAIL_PORT")
-    email_username: str = Field(..., env="EMAIL_USERNAME")
-    email_password: str = Field(..., env="EMAIL_PASSWORD")
+    # Email configuration (optional)
+    email_host: str = Field(default="", env="EMAIL_HOST")
+    email_port: int = Field(default=587, env="EMAIL_PORT")
+    email_username: str = Field(default="", env="EMAIL_USERNAME")
+    email_password: str = Field(default="", env="EMAIL_PASSWORD")
 
     # Admin emails - handle both JSON array and comma-separated string
     admin_emails: List[str] = Field(default_factory=list, env="ADMIN_EMAILS")
