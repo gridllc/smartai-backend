@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -7,7 +7,8 @@
     <title>SmartAI Audio Transcriber</title>
     <link rel="stylesheet" href="/static/style.css" />
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body.dark {
             background-color: #111;
@@ -273,16 +274,17 @@
     <!-- Main App UI -->
     <div id="appUI" style="display: none">
         <button id="logout" onclick="logout()">Logout</button>
-        <button id="darkToggle" onclick="toggleDarkMode()">🌙 Dark</button>
+        <button id="darkToggle" onclick="toggleDarkMode()">🌙 Dark Mode</button>
         <button id="profileToggle" onclick="toggleProfile()">👤 Profile</button>
         <button id="analyticsToggle" onclick="toggleAnalytics()">📊 Analytics</button>
         <h1 id="welcomeHeader">SmartAI Audio Transcriber</h1>
         <input type="file" id="fileInput" />
         <button onclick="uploadFile()">Upload & Transcribe</button>
         <button onclick="downloadAll()">📦 Download All</button>
-        <button onclick="toggleWalkthrough()">🎓 Walkthrough Mode</button>
+        <button onclick="toggleWalkthrough()">🎓 Walkthrough</button>
         <div>
             <input type="text" id="searchInput" placeholder="Search transcripts..." oninput="filterTranscripts()" />
+            <input type="text" id="tagSearchInput" placeholder="Filter by tag..." oninput="filterTranscripts()" />
             <select id="sortSelect" onchange="filterTranscripts()">
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
@@ -335,39 +337,96 @@
         function toggleAnalytics() {
             const panel = document.getElementById("analyticsPanel");
             panel.style.display = panel.style.display === "none" ? "block" : "none";
-
-            if (panel.style.display === "block") {
-                loadAnalytics();
-            }
+            if (panel.style.display === "block") loadAnalytics();
         }
 
         async function loadAnalytics() {
+            const contentBox = document.getElementById("analyticsContent");
+            contentBox.innerHTML = "<p>Loading analytics...</p>";
             try {
-                const res = await fetch("/api/stats", {
+                const res = await fetch("/api/admin/analytics", {
                     headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
                 });
-
-                if (!res.ok) throw new Error("Failed to load analytics");
-
+                if (!res.ok) throw new Error((await res.json()).detail || 'Failed to fetch admin analytics');
                 const data = await res.json();
                 displayAnalytics(data);
+                loadUploadsByDateChart();
             } catch (err) {
-                showToast("Error loading analytics: " + err.message, "error");
+                console.error("Analytics load error:", err);
+                contentBox.innerHTML = `<p>Error loading analytics: ${err.message}</p>`;
             }
         }
 
         function displayAnalytics(data) {
-            const content = document.getElementById("analyticsContent");
-            content.innerHTML = `
-        <div class="analytics-section">
-          <h4>Email Activity</h4>
-          ${Object.entries(data).map(([email, count]) =>
-                `<div class="analytics-stat">
-              <strong>${email}:</strong> ${count} activities
-            </div>`
-            ).join('')}
-        </div>
-      `;
+            const contentBox = document.getElementById("analyticsContent");
+            contentBox.innerHTML = `
+                <div class="analytics-section">
+                  <h4>Overall Stats</h4>
+                  <span class="analytics-stat"><strong>Total Users:</strong> ${data.total_users}</span>
+                  <span class="analytics-stat"><strong>Total Files:</strong> ${data.total_files}</span>
+                  <span class="analytics-stat"><strong>Total Qs:</strong> ${data.total_questions}</span>
+                </div>
+                <div class="analytics-section">
+                  <h4>Top Users (by activity)</h4>
+                  <canvas id="userActivityChart" height="150"></canvas>
+                </div>
+            `;
+            const ctx = document.getElementById('userActivityChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.top_users.map(u => u.email),
+                    datasets: [{
+                        label: 'User Activity Count',
+                        data: data.top_users.map(u => u.count),
+                        backgroundColor: '#007BFF'
+                    }]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        async function loadUploadsByDateChart() {
+            try {
+                const res = await fetch("/api/admin/stats/uploads-by-date", {
+                    headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
+                });
+                if (!res.ok) throw new Error((await res.json()).detail || 'Failed to fetch date stats');
+
+                const data = await res.json();
+                const contentBox = document.getElementById("analyticsContent");
+
+                const dateChartSection = document.createElement('div');
+                dateChartSection.className = 'analytics-section';
+                dateChartSection.innerHTML = `<h4>Uploads Per Day</h4>`;
+                const canvas = document.createElement('canvas');
+                canvas.id = 'uploadsByDateChart';
+                canvas.height = 150;
+                dateChartSection.appendChild(canvas);
+                contentBox.appendChild(dateChartSection);
+
+                const ctx = canvas.getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.map(d => d.date),
+                        datasets: [{
+                            label: 'Uploads per day',
+                            data: data.map(d => d.count),
+                            borderColor: '#28a745',
+                            fill: false,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                    }
+                });
+            } catch (err) {
+                console.error("Date chart error:", err);
+                showToast(`Error loading date chart: ${err.message}`, "error");
+            }
         }
 
         // Walkthrough Function
@@ -378,29 +437,28 @@
 
             if (panel.style.display === "block") {
                 try {
+                    content.innerHTML = "<em>Loading...</em>";
                     const res = await fetch("/api/qa-history", {
-                        headers: {
-                            "Authorization": "Bearer " + localStorage.getItem("accessToken")
-                        }
+                        headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
                     });
                     if (!res.ok) throw new Error("Failed to load Q&A history");
                     const data = await res.json();
 
                     if (!data.history || data.history.length === 0) {
-                        content.innerHTML = "<p><em>No Q&A history found.</em></p>";
+                        content.innerHTML = "<p><em>No Q&A history found. Ask a question to see it here.</em></p>";
                         return;
                     }
 
                     content.innerHTML = data.history.map(q => `
                         <div style="margin-bottom: 15px; padding: 10px; border-bottom: 1px solid #ccc;">
-                          <strong>Q:</strong> ${q.question}<br>
-                          <strong>A:</strong> ${q.answer}<br>
-                          <small>${new Date(q.timestamp).toLocaleString()}</small>
+                          <p><strong>Q:</strong> ${q.question}</p>
+                          <p><strong>A:</strong> ${q.answer}</p>
+                          <small><em>${new Date(q.timestamp).toLocaleString()}</em></small>
                         </div>
                     `).join("");
 
                 } catch (err) {
-                    content.innerHTML = `<p>Error loading walkthrough: ${err.message}</p>`;
+                    content.innerHTML = `<p style="color:red;">Error loading history: ${err.message}</p>`;
                 }
             }
         }
@@ -418,9 +476,8 @@
                 });
 
                 if (!res.ok) throw new Error("Failed to update tag");
-
                 showToast("Tag updated successfully!", "success");
-                loadHistory(); // Refresh the list to show updated tags
+                loadHistory();
             } catch (err) {
                 showToast("Error updating tag: " + err.message, "error");
             }
@@ -431,23 +488,15 @@
             const box = document.getElementById("profileBox");
             const overlay = document.getElementById("profileOverlay");
             const isVisible = box.style.display === "block";
-
             box.style.display = isVisible ? "none" : "block";
             overlay.style.display = isVisible ? "none" : "block";
-
-            if (!isVisible) {
-                loadProfile();
-            }
+            if (!isVisible) loadProfile();
         }
 
         function loadProfile() {
-            const displayName = localStorage.getItem("displayName") || "";
-            const prefDark = localStorage.getItem("prefDark") === "true";
-            const emailNotifications = localStorage.getItem("emailNotifications") === "true";
-
-            document.getElementById("displayName").value = displayName;
-            document.getElementById("prefDark").checked = prefDark;
-            document.getElementById("emailNotifications").checked = emailNotifications;
+            document.getElementById("displayName").value = localStorage.getItem("displayName") || "";
+            document.getElementById("prefDark").checked = localStorage.getItem("prefDark") === "true";
+            document.getElementById("emailNotifications").checked = localStorage.getItem("emailNotifications") === "true";
         }
 
         function saveProfile() {
@@ -456,40 +505,25 @@
             const emailNotifications = document.getElementById("emailNotifications").checked;
 
             localStorage.setItem("displayName", displayName);
-            localStorage.setItem("prefDark", prefDark);
-            localStorage.setItem("emailNotifications", emailNotifications);
+            localStorage.setItem("prefDark", prefDark.toString());
+            localStorage.setItem("emailNotifications", emailNotifications.toString());
 
-            // Apply dark mode preference immediately
-            if (prefDark) {
-                document.body.classList.add("dark");
-            } else {
-                document.body.classList.remove("dark");
-            }
+            if (prefDark) document.body.classList.add("dark");
+            else document.body.classList.remove("dark");
 
-            // Update welcome header if display name is set
-            if (displayName) {
-                document.getElementById("welcomeHeader").innerText = `Welcome, ${displayName}`;
-            }
+            if (displayName) document.getElementById("welcomeHeader").innerText = `Welcome, ${displayName}`;
 
             showToast("Profile saved.", "success");
             toggleProfile();
         }
 
         function logout() {
-            localStorage.removeItem("token");
-            document.getElementById("loginBox").style.display = "block";
-            document.getElementById("appUI").style.display = "none";
-            document.getElementById("registerBox").style.display = "none";
-            document.getElementById("resetBox").style.display = "none";
-            document.getElementById("adminPanel").style.display = "none";
-            document.getElementById("analyticsPanel").style.display = "none";
-            toggleProfile(); // Close profile if open
-            showToast("Logged out", "info");
+            localStorage.clear();
+            window.location.reload();
         }
 
         function toggleDarkMode() {
             document.body.classList.toggle("dark");
-            // Save preference
             localStorage.setItem("prefDark", document.body.classList.contains("dark"));
         }
 
@@ -514,16 +548,13 @@
             const email = document.getElementById("resetEmail").value;
             const password = document.getElementById("newPassword").value;
             const code = document.getElementById("resetCode").value;
-
             try {
                 const res = await fetch("/reset-password", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ email, password, code })
                 });
-
                 if (!res.ok) throw new Error("Reset failed");
-
                 showToast("Password updated!", "success");
                 showLogin();
             } catch (err) {
@@ -534,38 +565,22 @@
         async function downloadAll() {
             try {
                 showToast("Preparing download...", "info");
-
                 const response = await fetch("/api/download/all", {
                     method: "GET",
-                    headers: {
-                        "Authorization": "Bearer " + localStorage.getItem("accessToken")
-                    }
+                    headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
                 });
-
-                if (!response.ok) {
-                    throw new Error("Download failed");
-                }
-
-                // Create a blob from the response
+                if (!response.ok) throw new Error("Download failed");
                 const blob = await response.blob();
-
-                // Create a temporary URL for the blob
                 const url = window.URL.createObjectURL(blob);
-
-                // Create a temporary anchor element to trigger download
                 const a = document.createElement("a");
                 a.href = url;
                 a.download = "all_transcripts.zip";
                 document.body.appendChild(a);
                 a.click();
-
-                // Clean up
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-
                 showToast("Download started!", "success");
             } catch (err) {
-                console.error("Download error:", err);
                 showToast("Download error: " + err.message, "error");
             }
         }
@@ -575,13 +590,11 @@
                 const res = await fetch("/api/activity-log", {
                     headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
                 });
-
                 if (!res.ok) throw new Error("Failed to load activity log");
-
                 const data = await res.json();
                 const logDiv = document.getElementById("activityLog");
                 logDiv.innerHTML = "<h4>Recent Activity</h4><ul>" +
-                    data.log.map(e => `<li>${e[1]} - ${e[2] || "(no file)"} by ${e[0]} @ ${e[3]}</li>`).join("") +
+                    data.log.map(e => `<li>${e[1]} - ${e[2] || "(no file)"} by ${e[0]} @ ${new Date(e[3]).toLocaleString()}</li>`).join("") +
                     "</ul>";
             } catch (err) {
                 showToast("Error loading activity log: " + err.message, "error");
@@ -591,126 +604,94 @@
         async function uploadFile() {
             const fileInput = document.getElementById("fileInput");
             const file = fileInput.files[0];
-
-            if (!file) {
-                showToast("Please select a file to upload.", "error");
-                return;
-            }
+            if (!file) return showToast("Please select a file to upload.", "error");
 
             const formData = new FormData();
             formData.append("file", file);
-
             const spinner = document.getElementById("spinner");
             spinner.style.display = "inline-block";
 
             try {
                 const res = await fetch("/upload-and-transcribe", {
                     method: "POST",
-                    headers: {
-                        "Authorization": "Bearer " + localStorage.getItem("accessToken")
-                    },
+                    headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") },
                     body: formData
                 });
-
                 if (!res.ok) {
                     const error = await res.json();
                     throw new Error(error.detail || "Upload failed");
                 }
-
-                const result = await res.json();
                 showToast("Upload and transcription successful!", "success");
-
-                // Check if email notifications are enabled and send notification
-                if (localStorage.getItem("emailNotifications") === "true") {
-                    try {
-                        await fetch("/send-email-notification", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                "Authorization": "Bearer " + localStorage.getItem("accessToken")
-                            },
-                            body: JSON.stringify({
-                                email: currentUser,
-                                transcript_path: result.transcript_path || "transcript.txt"
-                            })
-                        });
-                        showToast("Email notification sent!", "info");
-                    } catch (emailErr) {
-                        console.error("Email notification error:", emailErr);
-                        // Don't show error to user as main upload was successful
-                    }
-                }
-
                 loadHistory();
-                fileInput.value = ""; // Clear the file input
+                fileInput.value = "";
             } catch (err) {
-                console.error("Upload error:", err);
                 showToast("Upload error: " + err.message, "error");
             } finally {
                 spinner.style.display = "none";
             }
         }
 
-
-
         async function askQuestion() {
             const questionInput = document.getElementById("questionInput");
             const question = questionInput.value.trim();
             if (!question) return showToast("Please enter a question.", "error");
 
-            const answerBox = document.getElementById("answerBox");
             const answerText = document.getElementById("answerText");
             const sourcesBox = document.getElementById("sourcesBox");
             answerText.textContent = "";
             sourcesBox.innerHTML = "";
-
             const spinner = document.getElementById("spinner");
             spinner.style.display = "inline-block";
 
-            const response = await fetch("/ask", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + localStorage.getItem("accessToken")
-                },
-                body: JSON.stringify({ question })
-            });
+            try {
+                const response = await fetch("/ask", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + localStorage.getItem("accessToken")
+                    },
+                    body: JSON.stringify({ question })
+                });
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
+                if (!response.ok || !response.body) {
+                    const errData = await response.json();
+                    throw new Error(errData.detail || "Failed to get response from server.");
+                }
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const chunk = decoder.decode(value, { stream: true });
-                for (const line of chunk.split("\n\n")) {
-                    if (!line.startsWith("data:")) continue;
-                    const payload = JSON.parse(line.slice(5));
-
-                    if (payload.type === "token") {
-                        answerText.textContent += payload.data;
-                    } else if (payload.type === "sources") {
-                        payload.data.forEach(source => {
-                            const block = document.createElement("div");
-                            block.className = "source-block";
-                            if (source.highlight) block.style.border = "2px solid #007bff";
-                            block.innerHTML = `<strong>Source:</strong> ${source.source || "Unknown"}
-                             <div class='source-text'>${source.text}</div>`;
-                            sourcesBox.appendChild(block);
-                        });
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value, { stream: true });
+                    for (const line of chunk.split("\n\n")) {
+                        if (!line.startsWith("data:")) continue;
+                        try {
+                            const payload = JSON.parse(line.slice(5));
+                            if (payload.type === "token") {
+                                answerText.textContent += payload.data;
+                            } else if (payload.type === "sources") {
+                                payload.data.forEach(source => {
+                                    const block = document.createElement("div");
+                                    block.className = "source-block";
+                                    block.innerHTML = `<strong>Source:</strong> ${source.source || "Unknown"}<div class='source-text'>${source.text}</div>`;
+                                    sourcesBox.appendChild(block);
+                                });
+                            }
+                        } catch (e) { console.error("Error parsing stream chunk:", line); }
                     }
                 }
+            } catch (err) {
+                showToast("Error asking question: " + err.message, "error");
+            } finally {
+                spinner.style.display = "none";
+                questionInput.value = "";
             }
-
-            spinner.style.display = "none";
-            questionInput.value = "";
         }
 
         function login() {
             const email = document.getElementById("loginEmail").value;
             const password = document.getElementById("loginPassword").value;
-
             fetch("/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -721,24 +702,7 @@
             }).then(data => {
                 localStorage.setItem("accessToken", data.access_token);
                 localStorage.setItem("userEmail", email);
-                currentUser = email;
-                document.getElementById("loginBox").style.display = "none";
-                document.getElementById("appUI").style.display = "block";
-
-                // Set welcome message based on display name or email
-                const displayName = localStorage.getItem("displayName");
-                document.getElementById("welcomeHeader").innerText = `Welcome, ${displayName || email}`;
-
-                if (email === "patrick@gridllc.net") {
-                    document.getElementById("adminPanel").style.display = "block";
-                }
-
-                // Apply saved preferences
-                if (localStorage.getItem("prefDark") === "true") {
-                    document.body.classList.add("dark");
-                }
-
-                loadHistory();
+                window.onload(); // Re-run init logic
                 showToast("Login successful", "success");
             }).catch(err => {
                 showToast("Login error: " + err.message, "error");
@@ -750,7 +714,6 @@
             const email = document.getElementById("registerEmail").value;
             const password = document.getElementById("registerPassword").value;
             const invite_code = document.getElementById("registerCode").value;
-
             fetch("/register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -768,45 +731,45 @@
 
         function filterTranscripts() {
             const query = document.getElementById("searchInput").value.toLowerCase();
+            const tagQuery = document.getElementById("tagSearchInput").value.toLowerCase();
             const sortBy = document.getElementById("sortSelect").value;
+
             let filtered = allTranscripts.filter(item => {
-                const name = typeof item === 'string' ? item : item.filename;
-                return name.toLowerCase().includes(query);
+                const name = (typeof item === 'string' ? item : item.filename).toLowerCase();
+                const tag = (typeof item === 'object' && item.tag) ? item.tag.toLowerCase() : "";
+                return name.includes(query) && (!tagQuery || tag.includes(tagQuery));
             });
-            if (sortBy === "newest") filtered.reverse();
+
+            if (sortBy === "oldest") filtered.reverse();
 
             const historyDiv = document.getElementById("transcriptHistory");
             historyDiv.innerHTML = "<h3>Transcript History</h3>";
-            filtered.forEach(renderTranscriptItem);
+            if (filtered.length === 0) {
+                historyDiv.innerHTML += "<p>No matching transcripts found.</p>";
+            } else {
+                filtered.forEach(item => renderTranscriptItem(item, historyDiv));
+            }
         }
 
-        function renderTranscriptItem(item) {
+        function renderTranscriptItem(item, container) {
             const filename = typeof item === 'string' ? item : item.filename;
             const tag = typeof item === 'object' ? item.tag : null;
-
             const div = document.createElement("div");
             div.className = "history-item";
-
             const nameSpan = document.createElement("span");
             nameSpan.innerText = `📄 ${filename}`;
 
-            // Tag input
             const tagInput = document.createElement("input");
             tagInput.type = "text";
             tagInput.className = "tag-input";
             tagInput.placeholder = "Add tag...";
             tagInput.value = tag || "";
-            tagInput.onkeypress = (e) => {
-                if (e.key === 'Enter') {
-                    updateTag(filename, tagInput.value);
-                }
-            };
+            tagInput.onkeypress = (e) => { if (e.key === 'Enter') updateTag(filename, tagInput.value); };
 
             const tagButton = document.createElement("button");
             tagButton.innerText = "Tag";
             tagButton.onclick = () => updateTag(filename, tagInput.value);
 
-            // Display current tag if exists
             const tagsDisplay = document.createElement("div");
             tagsDisplay.className = "tags-display";
             if (tag) {
@@ -821,59 +784,50 @@
             const shareBtn = document.createElement("button");
             shareBtn.innerText = "Share";
             shareBtn.onclick = () => {
-                const link = `${window.location.origin}/static/view.html?file=${filename}`;
+                const link = `${window.location.origin}/static/view.html?file=${encodeURIComponent(filename)}`;
                 navigator.clipboard.writeText(link);
                 showToast("Shareable link copied!", "info");
             };
-            div.appendChild(shareBtn);
 
             const previewBox = document.createElement("div");
-            previewBox.style.display = "none";
-            previewBox.style.marginTop = "5px";
-            previewBox.style.padding = "6px";
-            previewBox.style.border = "1px solid #ccc";
-            previewBox.style.borderRadius = "4px";
-            previewBox.style.background = "#f9f9f9";
-            previewBox.style.whiteSpace = "pre-wrap";
+            previewBox.style.cssText = "display: none; margin-top: 5px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: #f9f9f9; white-space: pre-wrap; max-height: 200px; overflow-y: auto;";
 
             previewBtn.onclick = async () => {
                 if (previewBox.style.display === "none") {
                     try {
+                        previewBtn.innerText = "Loading...";
                         const res = await fetch(`/api/transcript/${filename}`, {
                             headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
                         });
-
                         if (!res.ok) throw new Error("Failed to load transcript");
-
                         const data = await res.json();
                         previewBox.innerText = data.transcript || "[Empty]";
                         previewBox.style.display = "block";
+                        previewBtn.innerText = "Hide Preview";
                     } catch (err) {
                         showToast("Error loading transcript: " + err.message, "error");
+                        previewBtn.innerText = "Preview";
                     }
                 } else {
                     previewBox.style.display = "none";
+                    previewBtn.innerText = "Preview";
                 }
             };
 
             const downloadBtn = document.createElement("button");
             downloadBtn.innerText = "Download";
-            downloadBtn.onclick = () => {
-                window.location.href = `/api/download/${filename}`;
-            };
+            downloadBtn.onclick = () => { window.location.href = `/api/download/${filename}?token=${localStorage.getItem("accessToken")}`; };
 
             const deleteBtn = document.createElement("button");
             deleteBtn.innerText = "Delete";
             deleteBtn.onclick = async () => {
-                if (confirm(`Delete ${filename}?`)) {
+                if (confirm(`Are you sure you want to delete ${filename}?`)) {
                     try {
                         const res = await fetch(`/api/delete/${filename}`, {
                             method: "DELETE",
                             headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
                         });
-
                         if (!res.ok) throw new Error("Delete failed");
-
                         loadHistory();
                         showToast(`${filename} deleted.`, "info");
                     } catch (err) {
@@ -886,12 +840,13 @@
             div.appendChild(tagInput);
             div.appendChild(tagButton);
             div.appendChild(previewBtn);
+            div.appendChild(shareBtn);
             div.appendChild(downloadBtn);
             div.appendChild(deleteBtn);
             div.appendChild(tagsDisplay);
             div.appendChild(previewBox);
 
-            document.getElementById("transcriptHistory").appendChild(div);
+            container.appendChild(div);
         }
 
         async function loadHistory() {
@@ -899,9 +854,7 @@
                 const res = await fetch("/api/history", {
                     headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
                 });
-
                 if (!res.ok) throw new Error("Failed to load history");
-
                 const data = await res.json();
                 allTranscripts = data.files || [];
                 filterTranscripts();
@@ -913,57 +866,30 @@
         window.onload = () => {
             const token = localStorage.getItem("accessToken");
             if (token) {
-                // Extract email from token or use a stored value
                 currentUser = localStorage.getItem("userEmail") || "user";
                 document.getElementById("loginBox").style.display = "none";
                 document.getElementById("appUI").style.display = "block";
 
-                // Set welcome message based on display name or email
                 const displayName = localStorage.getItem("displayName");
                 document.getElementById("welcomeHeader").innerText = `Welcome, ${displayName || currentUser}`;
 
                 if (currentUser === "patrick@gridllc.net") {
                     document.getElementById("adminPanel").style.display = "block";
+                    document.getElementById("analyticsToggle").style.display = "inline-block";
+                } else {
+                    document.getElementById("analyticsToggle").style.display = "none";
                 }
 
-                // Apply saved preferences
                 if (localStorage.getItem("prefDark") === "true") {
                     document.body.classList.add("dark");
                 }
-
                 loadHistory();
             } else {
                 document.getElementById("loginBox").style.display = "block";
-                document.getElementById("registerBox").style.display = "none";
                 document.getElementById("appUI").style.display = "none";
+                document.getElementById("registerBox").style.display = "none";
             }
         };
-
-        // Close profile when clicking outside
-        document.addEventListener('click', function (event) {
-            const profileBox = document.getElementById('profileBox');
-            const profileButton = document.getElementById('profileToggle');
-
-            if (profileBox.style.display === 'block' &&
-                !profileBox.contains(event.target) &&
-                event.target !== profileButton) {
-                toggleProfile();
-            }
-        });
-
-        // Handle Enter key in question input
-        document.addEventListener('keypress', function (event) {
-            if (event.key === 'Enter') {
-                const activeElement = document.activeElement;
-                if (activeElement.id === 'questionInput') {
-                    askQuestion();
-                } else if (activeElement.id === 'loginPassword') {
-                    login();
-                } else if (activeElement.id === 'registerPassword') {
-                    register();
-                }
-            }
-        });
     </script>
 </body>
 
