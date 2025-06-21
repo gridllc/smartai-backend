@@ -344,7 +344,7 @@
         async function loadAnalytics() {
             try {
                 const res = await fetch("/api/stats", {
-                    headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+                    headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
                 });
 
                 if (!res.ok) throw new Error("Failed to load analytics");
@@ -380,7 +380,7 @@
                 try {
                     const res = await fetch("/api/qa-history", {
                         headers: {
-                            "Authorization": "Bearer " + localStorage.getItem("token")
+                            "Authorization": "Bearer " + localStorage.getItem("accessToken")
                         }
                     });
                     if (!res.ok) throw new Error("Failed to load Q&A history");
@@ -412,7 +412,7 @@
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "Authorization": "Bearer " + localStorage.getItem("token")
+                        "Authorization": "Bearer " + localStorage.getItem("accessToken")
                     },
                     body: JSON.stringify({ tag })
                 });
@@ -538,7 +538,7 @@
                 const response = await fetch("/api/download/all", {
                     method: "GET",
                     headers: {
-                        "Authorization": "Bearer " + localStorage.getItem("token")
+                        "Authorization": "Bearer " + localStorage.getItem("accessToken")
                     }
                 });
 
@@ -573,7 +573,7 @@
         async function loadActivityLog() {
             try {
                 const res = await fetch("/api/activity-log", {
-                    headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+                    headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
                 });
 
                 if (!res.ok) throw new Error("Failed to load activity log");
@@ -607,7 +607,7 @@
                 const res = await fetch("/upload-and-transcribe", {
                     method: "POST",
                     headers: {
-                        "Authorization": "Bearer " + localStorage.getItem("token")
+                        "Authorization": "Bearer " + localStorage.getItem("accessToken")
                     },
                     body: formData
                 });
@@ -627,7 +627,7 @@
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json",
-                                "Authorization": "Bearer " + localStorage.getItem("token")
+                                "Authorization": "Bearer " + localStorage.getItem("accessToken")
                             },
                             body: JSON.stringify({
                                 email: currentUser,
@@ -671,7 +671,7 @@
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": "Bearer " + localStorage.getItem("token")
+                    "Authorization": "Bearer " + localStorage.getItem("accessToken")
                 },
                 body: JSON.stringify({ question })
             });
@@ -720,6 +720,7 @@
                 return res.json();
             }).then(data => {
                 localStorage.setItem("token", data.access_token);
+                localStorage.setItem("userEmail", email);
                 currentUser = email;
                 document.getElementById("loginBox").style.display = "none";
                 document.getElementById("appUI").style.display = "block";
@@ -839,7 +840,7 @@
                 if (previewBox.style.display === "none") {
                     try {
                         const res = await fetch(`/api/transcript/${filename}`, {
-                            headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+                            headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
                         });
 
                         if (!res.ok) throw new Error("Failed to load transcript");
@@ -868,7 +869,7 @@
                     try {
                         const res = await fetch(`/api/delete/${filename}`, {
                             method: "DELETE",
-                            headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+                            headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
                         });
 
                         if (!res.ok) throw new Error("Delete failed");
@@ -896,7 +897,7 @@
         async function loadHistory() {
             try {
                 const res = await fetch("/api/history", {
-                    headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+                    headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
                 });
 
                 if (!res.ok) throw new Error("Failed to load history");
@@ -910,7 +911,7 @@
         }
 
         window.onload = () => {
-            const token = localStorage.getItem("token");
+            const token = localStorage.getItem("accessToken");
             if (token) {
                 // Extract email from token or use a stored value
                 currentUser = localStorage.getItem("userEmail") || "user";
