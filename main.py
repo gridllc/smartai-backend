@@ -2,7 +2,7 @@ from transcription_routes import router as transcription_router
 from passlib.context import CryptContext
 from starlette.background import BackgroundTask
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 from pydantic import BaseModel  # Keep this for regular Pydantic models
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +20,7 @@ from models import Base, ActivityLog, UserFile, QAHistory
 from upload_processor import transcribe_audio, get_openai_client
 from pinecone_sdk import search_similar_chunks
 from auth import get_current_user, authenticate_user, register_user, create_access_token
+from auth import verify_token
 from email_utils import send_email_with_attachment
 from config import settings  # Import the settings instance from config.py
 from qa_handler import router as qa_router
@@ -91,7 +92,7 @@ def log_activity(email: str, action: str, filename: str = None, db: Session = No
     timestamp = datetime.utcnow()
 
     # Log to database
-    new_entry = Activity(
+    new_entry = ActivityLog(
         email=email,
         action=action,
         filename=filename,
@@ -115,6 +116,12 @@ def log_activity(email: str, action: str, filename: str = None, db: Session = No
 def read_root():
     """Serve the main application page."""
     return FileResponse("static/index.html")
+
+
+@app.get("/api/history")
+async def list_transcripts(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    files = db.query(UserFile).filter(UserFile.email == user.email).all()
+    return {"files": [{"filename": f.filename, "tag": f.tag} for f in files]}
 
 
 @app.post("/register")

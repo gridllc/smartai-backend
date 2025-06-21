@@ -719,7 +719,7 @@
                 if (!res.ok) throw new Error("Login failed");
                 return res.json();
             }).then(data => {
-                localStorage.setItem("token", data.access_token);
+                localStorage.setItem("accessToken", data.access_token);
                 localStorage.setItem("userEmail", email);
                 currentUser = email;
                 document.getElementById("loginBox").style.display = "none";
