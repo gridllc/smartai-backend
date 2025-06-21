@@ -48,6 +48,16 @@ class Settings(BaseSettings):
 
         return []
 
+    # Local file paths
+    transcript_dir: str = "transcripts"
+    static_dir: str = "static"
+    db_path: str = "transcripts.db"
+    activity_log_path: str = "activity.log"
+    max_file_size: int = 100_000_000
+    allowed_extensions: List[str] = [
+        ".wav", ".mp3", ".m4a", ".flac", ".ogg", ".mp4", ".mov", ".mkv", ".avi"
+    ]
+
     class Config:
         env_file = ".env"
         case_sensitive = False
