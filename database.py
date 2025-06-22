@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from models import Base  # make sure this import exis
 import os
 
 # Load your PostgreSQL connection string from the environment
@@ -23,3 +24,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def create_tables():
+    Base.metadata.create_all(bind=engine)

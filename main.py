@@ -32,6 +32,13 @@ load_dotenv()
 
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+def init_db():
+    create_tables()
+
+
 app.include_router(transcription_router)
 app.include_router(qa_router)
 app.include_router(router)  # This one includes routes from this same file
