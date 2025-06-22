@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, Depends, HTTPException, Header, Request, Body
+from fastapi import FastAPI, APIRouter, UploadFile, Depends, HTTPException, Header, Request, Body
 from pydantic import BaseModel
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
