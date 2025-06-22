@@ -7,7 +7,6 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from models import UserFile, User
 from auth import get_current_user
-from auth import router as auth_router
 from database import get_db, create_tables
 from config import settings
 from openai import OpenAI
@@ -35,7 +34,6 @@ load_dotenv()
 app = FastAPI()
 app.include_router(transcription_router)
 app.include_router(qa_router)
-app.include_router(auth_router)
 app.include_router(router)  # This one includes routes from this same file
 
 
