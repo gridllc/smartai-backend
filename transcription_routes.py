@@ -1,6 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi import File, UploadFile
+import uuid
+from datetime import datetime
+from upload_processor import transcribe_audio
 from fastapi import Query
 from sqlalchemy.orm import Session
 from models import UserFile, User

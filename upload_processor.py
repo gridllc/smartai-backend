@@ -83,33 +83,6 @@ def extract_audio(input_path, output_path):
         raise
 
 
-def transcribe_audio(file_path):
-    print(f"\U0001F3A7 Transcribing audio from {file_path}")
-
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Audio file not found: {file_path}")
-
-    model = whisper.load_model("base")
-    result = model.transcribe(file_path)
-
-    # Extract timestamped segments
-    segments = []
-    for seg in result.get("segments", []):
-        segments.append({
-            "start": round(seg["start"], 2),
-            "end": round(seg["end"], 2),
-            "text": seg["text"].strip()
-        })
-
-    full_text = " ".join(seg["text"] for seg in segments)
-    print(f"\u2705 Transcription completed for {os.path.basename(file_path)}")
-
-    return {
-        "transcript": full_text,
-        "segments": segments
-    }
-
-
 def get_openai_client():
     return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -119,3 +92,29 @@ if __name__ == "__main__":
     for file in os.listdir(transcript_dir):
         if file.endswith(".txt"):
             process_file(os.path.join(transcript_dir, file))
+
+
+async def transcribe_audio(file_path: str, filename: str) -> tuple[str, list[dict]]:
+    print(f"\U0001F3A7 Transcribing audio from {file_path}")
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Audio file not found: {file_path}")
+
+    model = whisper.load_model("base")
+    result = model.transcribe(file_path)
+
+    print(f"\u2705 Transcription completed for {os.path.basename(file_path)}")
+
+    full_text = result.get("text", "")
+    segments = result.get("segments", [])
+
+    formatted_segments = [
+        {
+            "start": round(seg["start"], 2),
+            "end": round(seg["end"], 2),
+            "text": seg["text"].strip()
+        }
+        for seg in segments
+    ]
+
+    return full_text, formatted_segments

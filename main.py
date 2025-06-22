@@ -1,21 +1,54 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, UploadFile, Depends, HTTPException, Header, Request, Body
 from pydantic import BaseModel
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from datetime import datetime
 from sqlalchemy.orm import Session
 from models import UserFile, User
 from auth import get_current_user
-from database import get_db
+from auth import router as auth_router
+from database import get_db, create_tables
 from config import settings
 from openai import OpenAI
 import os
+import shutil
+import subprocess
+import smtplib
+from email.message import EmailMessage
 import io
 import json
 import aiofiles
+import logging
 from zipfile import ZipFile
 from typing import Dict, List, Any
+from transcription_routes import router as transcription_router
+from qa_handler import router as qa_router
+from email_utils import send_email_with_attachment
+from dotenv import load_dotenv
 
 router = APIRouter()
+
+load_dotenv()
+
+
+app = FastAPI()
+app.include_router(transcription_router)
+app.include_router(qa_router)
+app.include_router(auth_router)
+app.include_router(router)  # This one includes routes from this same file
+
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# CORS (allow all for dev)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class SegmentInput(BaseModel):
@@ -24,7 +57,31 @@ class SegmentInput(BaseModel):
     timestamp: float | None = None
 
 
-@router.get("/api/transcripts", response_model=None)
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/transcripts", StaticFiles(directory="transcripts"),
+          name="transcripts")
+
+# Root route
+
+
+@app.get("/")
+def root():
+    return {"message": "SmartAI is running."}
+
+# Serve uploaded audio directly
+
+
+@app.get("/audio/{filename}")
+async def serve_audio(filename: str):
+    filepath = os.path.join("uploads", filename)
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="Audio not found")
+    return FileResponse(filepath, media_type="audio/mpeg")
+
+
+@router.get("/api/transcripts")
 async def get_transcript_list(
     user=Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -68,6 +125,19 @@ def get_transcript(
     return JSONResponse(content={"transcript": text, "segments": segments})
 
 
+@router.post("/api/transcript/{filename}/segments")
+async def save_segments(filename: str, segments_data: dict, user=Depends(get_current_user)):
+    try:
+        segments_path = os.path.join(
+            settings.transcript_dir, f"{filename}.json")
+        with open(segments_path, "w", encoding="utf-8") as f:
+            json.dump(segments_data["segments"], f, indent=2)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to save segments: {str(e)}")
+
+
 @router.get("/api/share/{filename}", response_model=None)
 async def get_shared_transcript(filename: str) -> Dict[str, str]:
     safe_filename = os.path.basename(filename)
@@ -105,6 +175,46 @@ async def download_all_transcripts(
         "Content-Disposition": f"attachment; filename={user.email}_transcripts.zip"
     }
     return StreamingResponse(memory_file, media_type="application/zip", headers=headers)
+
+
+@router.post("/api/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        extension = os.path.splitext(file.filename)[1]
+        unique_name = f"{uuid.uuid4().hex}{extension}"
+        upload_path = os.path.join("uploads", unique_name)
+
+        async with aiofiles.open(upload_path, "wb") as out_file:
+            content = await file.read()
+            await out_file.write(content)
+
+        transcript_text, segments = await transcribe_audio(upload_path, unique_name)
+        transcript_path = os.path.join(
+            settings.transcript_dir, unique_name + ".txt")
+        segments_path = transcript_path.replace(".txt", ".json")
+
+        async with aiofiles.open(transcript_path, "w", encoding="utf-8") as f:
+            await f.write(transcript_text)
+        async with aiofiles.open(segments_path, "w", encoding="utf-8") as f:
+            await f.write(json.dumps(segments, indent=2))
+
+        new_file = UserFile(
+            email=user.email,
+            filename=unique_name,
+            file_size=len(content),
+            upload_timestamp=datetime.utcnow()
+        )
+        db.add(new_file)
+        db.commit()
+
+        return {"message": "File uploaded and transcribed", "filename": unique_name}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
 @router.post("/api/quiz/generate")
@@ -173,3 +283,21 @@ def get_saved_quiz(filename: str, user=Depends(get_current_user)):
         return {"quiz": quiz_data}
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to load quiz")
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logging.error(f"Unhandled error: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Server error: {str(exc)}"}
+    )
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=10000, reload=True)
