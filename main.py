@@ -1,337 +1,175 @@
-from transcription_routes import router as transcription_router
-from passlib.context import CryptContext
-from starlette.background import BackgroundTask
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
-from pydantic import BaseModel  # Keep this for regular Pydantic models
-from typing import List
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse
-from fastapi import FastAPI, UploadFile, Depends, HTTPException
-from datetime import datetime
-import json
-import traceback
-import subprocess
-import shutil
+from models import UserFile, User
+from auth import get_current_user
+from database import get_db
+from config import settings
+from openai import OpenAI
 import os
-from database import engine, get_db, SessionLocal
-from models import Base, ActivityLog, UserFile, QAHistory
-from upload_processor import transcribe_audio, get_openai_client
-from pinecone_sdk import search_similar_chunks
-from auth import get_current_user, authenticate_user, register_user, create_access_token
-from auth import verify_token
-from email_utils import send_email_with_attachment
-from config import settings  # Import the settings instance from config.py
-from qa_handler import router as qa_router
-from dotenv import load_dotenv
-load_dotenv()  # Load environment variables first
+import io
+import json
+import aiofiles
+from zipfile import ZipFile
+from typing import Dict, List, Any
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# Pydantic models (these use BaseModel, not BaseSettings)
+router = APIRouter()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
-class AskRequest(BaseModel):
-    question: str
+class SegmentInput(BaseModel):
+    segment_text: str
+    filename: str | None = None
+    timestamp: float | None = None
 
 
-class LoginRequest(BaseModel):
-    email: str
-    password: str
+@router.get("/api/transcripts", response_model=None)
+async def get_transcript_list(
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, List[Dict[str, Any]]]:
+    files = db.query(UserFile).filter(UserFile.email == user.email).order_by(
+        UserFile.upload_timestamp.desc()
+    ).all()
+    return {
+        "files": [
+            {
+                "filename": f.filename,
+                "file_size": f.file_size,
+                "upload_timestamp": f.upload_timestamp
+            } for f in files
+        ]
+    }
 
 
-class ResetPasswordRequest(BaseModel):
-    email: str
-    password: str
-    code: str
+@router.get("/api/transcript/{filename}")
+def get_transcript(
+    filename: str,
+    current_user: User = Depends(get_current_user)
+):
+    transcript_path = os.path.join(settings.transcript_dir, filename)
+    segments_path = transcript_path.replace(".txt", ".json")
+
+    if not os.path.exists(transcript_path):
+        raise HTTPException(status_code=404, detail="Transcript not found.")
+
+    with open(transcript_path, "r", encoding="utf-8") as f:
+        text = f.read()
+
+    segments = []
+    if os.path.exists(segments_path):
+        try:
+            with open(segments_path, "r", encoding="utf-8") as sf:
+                segments = json.load(sf)
+        except Exception:
+            print(f"Warning: Failed to parse {segments_path}")
+
+    return JSONResponse(content={"transcript": text, "segments": segments})
 
 
-# Now use settings from config.py
-os.makedirs(settings.upload_dir, exist_ok=True)
-os.makedirs(settings.transcript_dir, exist_ok=True)
-os.makedirs(settings.static_dir, exist_ok=True)
+@router.get("/api/share/{filename}", response_model=None)
+async def get_shared_transcript(filename: str) -> Dict[str, str]:
+    safe_filename = os.path.basename(filename)
+    path = os.path.join(settings.transcript_dir, safe_filename)
 
-# FastAPI app initialization
-app = FastAPI(title="SmartAI Transcription Service", version="2.0.0")
-
-# Initialize database
-Base.metadata.create_all(bind=engine)
-
-# Mount static files
-app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
-app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include routers
-app.include_router(qa_router)
-app.include_router(transcription_router)
-
-# Utility functions
-
-
-def hash_password(password: str) -> str:
-    """Hash a password using bcrypt."""
-    return pwd_context.hash(password)
-
-
-def log_activity(email: str, action: str, filename: str = None, db: Session = None):
-    """Log user activity to database and file."""
-    if db is None:
-        return
-
-    timestamp = datetime.utcnow()
-
-    # Log to database
-    new_entry = ActivityLog(
-        email=email,
-        action=action,
-        filename=filename,
-        timestamp=timestamp.isoformat()
-    )
-    db.add(new_entry)
-    db.commit()
-
-    # Log to file (optional backup)
-    try:
-        with open(settings.activity_log_path, "a") as f:
-            f.write(
-                f"{timestamp.isoformat()}|{email}|{action}|{filename or ''}\n")
-    except Exception as e:
-        print(f"Warning: Failed to write to activity log file: {e}")
-
-# Routes
-
-
-@app.get("/")
-def read_root():
-    """Serve the main application page."""
-    return FileResponse("static/index.html")
-
-
-@app.get("/api/history")
-async def list_transcripts(user=Depends(get_current_user), db: Session = Depends(get_db)):
-    files = db.query(UserFile).filter(UserFile.email == user.email).all()
-    return {"files": [{"filename": f.filename, "tag": f.tag} for f in files]}
-
-
-@app.post("/register")
-def register(payload: LoginRequest, db: Session = Depends(get_db)):
-    """Register a new user."""
-    try:
-        # Hash the password before storing
-        hashed_password = hash_password(payload.password)
-        register_user(db, payload.email, hashed_password)
-        log_activity(payload.email, "USER_REGISTERED", db=db)
-        return {"message": "User registered successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.post("/login")
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    """Authenticate user and return access token."""
-    try:
-        user = authenticate_user(db, payload.email, payload.password)
-        token = create_access_token(data={"sub": user.email})
-        log_activity(payload.email, "USER_LOGIN", db=db)
-        return {"access_token": token, "token_type": "bearer"}
-    except Exception as e:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-
-@app.post("/upload-and-transcribe")
-async def upload_and_transcribe(file: UploadFile, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    """Upload a file and transcribe it."""
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file provided")
+    if not os.path.exists(path) or not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Transcript not found")
 
     try:
-        # Sanitize filename
-        filename = os.path.basename(file.filename)
-        upload_path = os.path.join(settings.upload_dir, filename)
+        async with aiofiles.open(path, "r", encoding="utf-8") as f:
+            content = await f.read()
+        return {"transcript": content}
+    except Exception:
+        raise HTTPException(
+            status_code=500, detail="Failed to read transcript")
 
-        # Save uploaded file
-        with open(upload_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
 
-        ext = os.path.splitext(filename)[1].lower()
-        audio_path = upload_path
+@router.get("/api/download/all")
+async def download_all_transcripts(
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    memory_file = io.BytesIO()
+    user_files = db.query(UserFile).filter(UserFile.email == user.email).all()
 
-        # Convert video files to audio
-        if ext in [".mp4", ".mov", ".mkv", ".avi"]:
-            audio_path = upload_path.rsplit(".", 1)[0] + "_converted.wav"
-            subprocess.run([
-                "ffmpeg", "-y", "-i", upload_path, "-vn",
-                "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", audio_path
-            ], check=True, capture_output=True, text=True)
-        elif ext not in settings.allowed_extensions:
-            raise HTTPException(
-                status_code=400, detail=f"Unsupported file format: {ext}")
+    with ZipFile(memory_file, 'w') as zipf:
+        for file in user_files:
+            transcript_path = os.path.join(
+                settings.transcript_dir, file.filename + ".txt")
+            if os.path.exists(transcript_path):
+                zipf.write(transcript_path, arcname=f"{file.filename}.txt")
 
-        # Transcribe audio
-        transcript = transcribe_audio(audio_path)
+    memory_file.seek(0)
+    headers = {
+        "Content-Disposition": f"attachment; filename={user.email}_transcripts.zip"
+    }
+    return StreamingResponse(memory_file, media_type="application/zip", headers=headers)
 
-        # Save transcript
-        txt_path = os.path.join(settings.transcript_dir, filename + ".txt")
-        with open(txt_path, "w", encoding="utf-8") as f:
-            f.write(transcript)
 
-        # Generate summary
-        client = get_openai_client()
-        summary_response = client.chat.completions.create(
+@router.post("/api/quiz/generate")
+def generate_question(
+    input_data: SegmentInput,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        prompt = f"""
+You are a training assistant. Read the following transcript segment and generate a clear, concise question that tests the user's understanding of the content. Be specific but brief.
+
+Segment:
+{input_data.segment_text.strip()}
+
+Question:
+"""
+
+        completion = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "Summarize this transcript in 2–3 sentences."},
-                {"role": "user", "content": transcript[:4000]}
-            ],
-            max_tokens=200,
-            temperature=0.5
+                {"role": "system", "content": "You are a training assistant that helps quiz users on transcripts."},
+                {"role": "user", "content": prompt.strip()}
+            ]
         )
-        summary = summary_response.choices[0].message.content.strip()
 
-        # Log activity
-        log_activity(user.email, "FILE_TRANSCRIBED", filename, db=db)
+        question = completion.choices[0].message.content.strip()
 
-        return {
-            "filename": filename,
-            "transcript": transcript,
-            "summary": summary
-        }
+        if input_data.filename and input_data.timestamp is not None:
+            quiz_path = os.path.join(
+                settings.transcript_dir, f"{input_data.filename}_quiz.json")
+            quiz_entry = {
+                "segment": input_data.segment_text.strip(),
+                "question": question,
+                "timestamp": input_data.timestamp
+            }
 
-    except subprocess.CalledProcessError as e:
-        error_msg = f"FFmpeg error: {e.stderr if e.stderr else 'Unknown error'}"
-        raise HTTPException(status_code=500, detail=error_msg)
+            existing = []
+            if os.path.exists(quiz_path):
+                with open(quiz_path, "r", encoding="utf-8") as f:
+                    try:
+                        existing = json.load(f)
+                    except Exception:
+                        print(f"Warning: Could not parse existing quiz file.")
+
+            existing.append(quiz_entry)
+            with open(quiz_path, "w", encoding="utf-8") as f:
+                json.dump(existing, f, indent=2)
+
+        return {"question": question}
+
     except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(
-            status_code=500, detail=f"Error during upload: {str(e)}")
-    finally:
-        # Clean up temporary files
-        try:
-            if os.path.exists(upload_path):
-                os.remove(upload_path)
-            if audio_path != upload_path and os.path.exists(audio_path):
-                os.remove(audio_path)
-        except Exception as e:
-            print(f"Warning: Failed to clean up temporary files: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/ask")
-async def ask_question(request: AskRequest, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    """Ask a question about the transcribed content."""
-    question = request.question
+@router.get("/api/quiz/{filename}")
+def get_saved_quiz(filename: str, user=Depends(get_current_user)):
+    quiz_path = os.path.join(settings.transcript_dir, f"{filename}_quiz.json")
 
-    if not question.strip():
-        raise HTTPException(status_code=400, detail="Question cannot be empty")
+    if not os.path.exists(quiz_path):
+        return {"quiz": []}
 
     try:
-        # Search for relevant chunks
-        chunks = search_similar_chunks(question, top_k=5)
-        context = "\n\n".join([c["text"] for c in chunks])
-
-        # Create prompt
-        prompt = f"""You are a helpful assistant. Use the following transcript snippets to answer the question.
-
-Context:
-{context}
-
-Question: {question}
-
-Please provide a helpful and accurate answer based on the context provided."""
-
-        # Get streaming response from OpenAI
-        client = get_openai_client()
-        stream = client.chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "system", "content": prompt}],
-            temperature=0.3,
-            stream=True
-        )
-
-        answer_accumulator = []
-
-        def event_generator():
-            """Generate server-sent events for streaming response."""
-            # Send sources first
-            yield f"data: {json.dumps({'type': 'sources', 'data': chunks})}\n\n"
-
-            # Stream the answer
-            for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    token = chunk.choices[0].delta.content
-                    answer_accumulator.append(token)
-                    yield f"data: {json.dumps({'type': 'token', 'data': token})}\n\n"
-
-            # Send end signal
-            yield f"data: {json.dumps({'type': 'end'})}\n\n"
-
-        def save_history():
-            """Save Q&A history to database."""
-            try:
-                from models import QAHist
-                db_session = SessionLocal()
-                db_session.add(QAHist(
-                    email=user.email,
-                    question=question,
-                    answer="".join(answer_accumulator).strip(),
-                    timestamp=datetime.utcnow()
-                ))
-                db_session.commit()
-                db_session.close()
-
-                # Log activity
-                log_activity(user.email, "QUESTION_ASKED", db=db)
-            except Exception as e:
-                print(f"Error saving Q&A history: {e}")
-
-        return StreamingResponse(
-            event_generator(),
-            media_type="text/event-stream",
-            background=BackgroundTask(save_history)
-        )
-
+        with open(quiz_path, "r", encoding="utf-8") as f:
+            quiz_data = json.load(f)
+        return {"quiz": quiz_data}
     except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(
-            status_code=500, detail=f"Error processing question: {str(e)}")
-
-
-@app.post("/reset-password")
-async def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
-    """Reset user password with verification code."""
-    # Verify reset code
-    if payload.code != "smartai2024":  # Consider using a more secure system
-        raise HTTPException(status_code=401, detail="Invalid reset code")
-
-    # Find user
-    user = db.query(User).filter(User.email == payload.email).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    try:
-        # Hash new password and update
-        user.password = hash_password(payload.password)
-        db.commit()
-
-        # Log activity
-        log_activity(payload.email, "PASSWORD_RESET", db=db)
-
-        return {"message": "Password updated successfully"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=500, detail="Failed to update password")
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+        raise HTTPException(status_code=500, detail="Failed to load quiz")

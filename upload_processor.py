@@ -91,9 +91,23 @@ def transcribe_audio(file_path):
 
     model = whisper.load_model("base")
     result = model.transcribe(file_path)
+
+    # Extract timestamped segments
+    segments = []
+    for seg in result.get("segments", []):
+        segments.append({
+            "start": round(seg["start"], 2),
+            "end": round(seg["end"], 2),
+            "text": seg["text"].strip()
+        })
+
+    full_text = " ".join(seg["text"] for seg in segments)
     print(f"\u2705 Transcription completed for {os.path.basename(file_path)}")
 
-    return result["text"]
+    return {
+        "transcript": full_text,
+        "segments": segments
+    }
 
 
 def get_openai_client():
