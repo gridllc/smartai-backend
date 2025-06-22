@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi import Query
 from sqlalchemy.orm import Session
 from models import UserFile, User
 from auth import get_current_user
@@ -26,6 +27,11 @@ class SegmentInput(BaseModel):
 
 class NoteInput(BaseModel):
     note: str
+
+
+class EditQuizInput(BaseModel):
+    timestamp: float
+    new_question: str
 
 
 @router.get("/api/transcripts", response_model=None)
@@ -222,3 +228,161 @@ def get_note(
         return {"note": data["note"]}
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to read note")
+
+
+@router.post("/api/transcript/{filename}/segments")
+async def save_segments(filename: str, data: dict, user=Depends(get_current_user)):
+    safe_filename = os.path.basename(filename)
+    path = os.path.join(settings.transcript_dir,
+                        safe_filename.replace(".txt", ".json"))
+
+    try:
+        async with aiofiles.open(path, "w", encoding="utf-8") as f:
+            await f.write(json.dumps(data.get("segments", []), indent=2))
+        return {"message": "Segments updated successfully"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to save segments: {str(e)}")
+
+
+@router.post("/api/suggest")
+def suggest_text(data: dict, user=Depends(get_current_user)):
+    try:
+        prompt = f"Improve the clarity and professionalism of the following text:\n\n\"{data['text']}\"\n\nImproved:"
+        completion = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are an assistant that rewords transcript segments for clarity."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        suggestion = completion.choices[0].message.content.strip()
+        return {"suggestion": suggestion}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Suggestion failed: {str(e)}")
+
+
+@router.post("/api/transcript/{filename}/auto-segment")
+def auto_segment_transcript(filename: str, user=Depends(get_current_user)):
+    transcript_path = os.path.join(settings.transcript_dir, filename)
+    segment_path = transcript_path.replace(".txt", ".json")
+
+    if not os.path.exists(transcript_path):
+        raise HTTPException(
+            status_code=404, detail="Transcript file not found.")
+
+    with open(transcript_path, "r", encoding="utf-8") as f:
+        text = f.read().strip()
+
+    prompt = f"""Break this transcript into segments. Each segment should be a short paragraph with an estimated start time in seconds.
+Return JSON as a list of objects with 'start', 'end', and 'text'. Use even spacing if no timestamps exist.
+
+Transcript:
+{text[:4000]}"""  # truncate if needed
+
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a transcript segmentation assistant."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        segments = json.loads(completion.choices[0].message.content.strip())
+
+        with open(segment_path, "w", encoding="utf-8") as f:
+            json.dump(segments, f, indent=2)
+
+        return {"message": "Segments generated", "count": len(segments)}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Segmentation failed: {str(e)}")
+
+
+@router.delete("/api/quiz/{filename}/{timestamp}")
+def delete_quiz_question(filename: str, timestamp: float, user=Depends(get_current_user)):
+    safe_name = os.path.basename(filename)
+    path = os.path.join(settings.transcript_dir, f"{safe_name}_quiz.json")
+
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Quiz file not found")
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            quiz_data = json.load(f)
+
+        new_data = [q for q in quiz_data if abs(
+            q.get("timestamp", -1) - timestamp) > 0.01]
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(new_data, f, indent=2)
+
+        return {"message": "Question deleted"}
+    except Exception:
+        raise HTTPException(
+            status_code=500, detail="Failed to delete question")
+
+
+@router.patch("/api/quiz/{filename}")
+def update_quiz_question(filename: str, update: EditQuizInput, user=Depends(get_current_user)):
+    safe_name = os.path.basename(filename)
+    path = os.path.join(settings.transcript_dir, f"{safe_name}_quiz.json")
+
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Quiz file not found")
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            quiz_data = json.load(f)
+
+        updated = False
+        for q in quiz_data:
+            if abs(q.get("timestamp", -1) - update.timestamp) < 0.01:
+                q["question"] = update.new_question
+                updated = True
+                break
+
+        if not updated:
+            raise HTTPException(
+                status_code=404, detail="Quiz question not found")
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(quiz_data, f, indent=2)
+
+        return {"message": "Quiz updated"}
+    except Exception:
+        raise HTTPException(
+            status_code=500, detail="Failed to update question")
+
+
+@router.delete("/api/quiz/{filename}")
+def delete_quiz_question(
+    filename: str,
+    timestamp: float = Query(...),
+    user=Depends(get_current_user)
+):
+    safe_name = os.path.basename(filename)
+    path = os.path.join(settings.transcript_dir, f"{safe_name}_quiz.json")
+
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Quiz file not found")
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            quiz_data = json.load(f)
+
+        updated = [q for q in quiz_data if abs(
+            q.get("timestamp", -1) - timestamp) >= 0.01]
+
+        if len(updated) == len(quiz_data):
+            raise HTTPException(
+                status_code=404, detail="Quiz question not found")
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(updated, f, indent=2)
+
+        return {"message": "Quiz question deleted"}
+    except Exception:
+        raise HTTPException(
+            status_code=500, detail="Failed to delete question")
