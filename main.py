@@ -1,30 +1,39 @@
-from email_utils import send_email_with_attachment
-from qa_handler import router as qa_router
-from transcription_routes import router as transcription_router
-from typing import Dict, List, Any
-from zipfile import ZipFile
-import logging
-import aiofiles
-import json
-import io
-from email.message import EmailMessage
-import smtplib
-import subprocess
-import shutil
+# ─────────────────────────────────────────────
+# Standard library imports
 import os
+import io
+import json
+import uuid
+import logging
+import shutil
+import subprocess
+from zipfile import ZipFile
+from datetime import datetime
+
+# ─────────────────────────────────────────────
+# Third-party imports
+import aiofiles
 from openai import OpenAI
+from sqlalchemy.orm import Session
+from fastapi import (
+    FastAPI, APIRouter, UploadFile, File, Depends,
+    HTTPException, Header, Request, Body
+)
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from dotenv import load_dotenv
+
+# ─────────────────────────────────────────────
+# Local app imports
 from config import settings
 from database import get_db, create_tables
 from auth import get_current_user
 from models import UserFile, User
-from sqlalchemy.orm import Session
-from datetime import datetime
-from fastapi import FastAPI, APIRouter, UploadFile, File, Depends, HTTPException, Header, Request, Body
-from pydantic import BaseModel
-from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
+from qa_handler import router as qa_router
+from transcription_routes import router as transcription_router
+from upload_processor import transcribe_audio
 load_dotenv()
 
 
@@ -105,6 +114,11 @@ async def get_transcript_list(
             } for f in files
         ]
     }
+
+
+@router.get("/api/history")
+async def api_history(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    return await get_transcript_list(user, db)
 
 
 @router.get("/api/transcript/{filename}")
