@@ -213,9 +213,38 @@
 </head>
 
 <body>
-    <!-- Main App UI -->
-    <div id="appUI" style="display: none">
-        <!-- Login/Register/Profile/Admin modals and panels are assumed to exist -->
+    <!-- Main App UI (merged into one container) -->
+    <div id="appUI" style="display: none;">
+        <button id="logout" onclick="logout()">Logout</button>
+        <button id="profileToggle" onclick="toggleProfile()">Profile</button>
+        <button id="darkToggle" onclick="toggleDarkMode()">Dark Mode</button>
+        <button id="analyticsToggle" style="display: none;" onclick="toggleAnalytics()">Analytics</button>
+        <button id="exportLogBtn" style="display: none;">Export Log</button>
+
+        <h1 id="welcomeHeader">SmartAI Audio Transcriber</h1>
+        <input type="file" id="fileInput" />
+        <button id="uploadBtn">Upload & Transcribe</button>
+
+        <!-- Search and Filter Controls -->
+        <div style="margin: 15px 0;">
+            <input type="text" id="searchInput" placeholder="Search by filename..." onkeyup="filterTranscripts()">
+            <input type="text" id="tagSearchInput" placeholder="Filter by tag..." onkeyup="filterTranscripts()">
+            <select id="sortSelect" onchange="filterTranscripts()">
+                <option value="newest">Sort by Newest</option>
+                <option value="oldest">Sort by Oldest</option>
+            </select>
+        </div>
+
+        <div id="transcriptHistory"></div>
+        <hr>
+        <h2>Ask a Question</h2>
+        <input type="text" id="questionInput" placeholder="Ask a question..." />
+        <button onclick="askQuestion()">Ask</button>
+        <div id="spinner" class="spinner" style="display: none;"></div>
+        <div id="answerBox">
+            <div id="answerText"></div>
+            <div id="sourcesBox"></div>
+        </div>
 
         <!-- Transcript Detail Panel -->
         <div id="transcriptDetailPanel" style="display: none;">
@@ -275,44 +304,17 @@
         </div>
     </div>
 
-    <!-- All other HTML from your original file is assumed to be here (login box, profile box, etc.) -->
+    <!-- Placeholder elements -->
     <div class="profile-overlay" id="profileOverlay" onclick="toggleProfile()"></div>
     <div class="profile-box" id="profileBox">...</div>
     <div id="loginBox">...</div>
     <div id="resetBox" style="display:none">...</div>
     <div id="registerBox" style="display:none">...</div>
-    <div id="appUI">
-        <!-- The main UI from your file -->
-        <button id="logout" onclick="logout()">Logout</button>
-        <button id="profileToggle" onclick="toggleProfile()">Profile</button>
-        <button id="darkToggle" onclick="toggleDarkMode()">Dark Mode</button>
-        <button id="analyticsToggle" style="display: none;" onclick="toggleAnalytics()">Analytics</button>
-        <button id="exportLogBtn" style="display: none;">Export Log</button>
 
-        <h1 id="welcomeHeader">SmartAI Audio Transcriber</h1>
-        <input type="file" id="fileInput" />
-        <button id="uploadBtn">Upload & Transcribe</button>
-
-        <!-- Search and Filter Controls -->
-        <div style="margin: 15px 0;">
-            <input type="text" id="searchInput" placeholder="Search by filename..." onkeyup="filterTranscripts()">
-            <input type="text" id="tagSearchInput" placeholder="Filter by tag..." onkeyup="filterTranscripts()">
-            <select id="sortSelect" onchange="filterTranscripts()">
-                <option value="newest">Sort by Newest</option>
-                <option value="oldest">Sort by Oldest</option>
-            </select>
-        </div>
-
-        <div id="transcriptHistory"></div>
-        <hr>
-        <h2>Ask a Question</h2>
-        <input type="text" id="questionInput" placeholder="Ask a question..." />
-        <button onclick="askQuestion()">Ask</button>
-        <div id="spinner" class="spinner" style="display: none;"></div>
-        <div id="answerBox">
-            <div id="answerText"></div>
-            <div id="sourcesBox"></div>
-        </div>
+    <!-- ADDED: Controls for when user is logged out -->
+    <div id="loggedOutControls" style="text-align: center; margin-top: 20px; display: none;">
+        <button onclick="showLogin()">Login</button>
+        <button onclick="showRegister()">Register</button>
     </div>
 
     <div id="spinner" style="display:none;" class="spinner"></div>
@@ -330,6 +332,17 @@
             let bg = { success: "#4CAF50", error: "#f44336", info: "#2196F3" }[type] || "#333";
             Toastify({ text: message, duration: 3000, gravity: "top", position: "right", style: { background: bg } }).showToast();
         }
+
+        // ADDED: Function to fix ReferenceError
+        function toggleProfile() {
+            // This is a basic implementation. You can make it more sophisticated.
+            const profileBox = document.getElementById("profileBox");
+            const overlay = document.getElementById("profileOverlay");
+            const isVisible = profileBox.style.display === "block";
+            profileBox.style.display = isVisible ? "none" : "block";
+            if (overlay) overlay.style.display = isVisible ? "none" : "block";
+        }
+
 
         // --- AUTH & USER ---
         function login() {
@@ -388,6 +401,11 @@
                 const res = await fetch("/api/transcripts", {
                     headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
                 });
+                if (res.status === 401) {
+                    showToast("Session expired. Please log in again.", "error");
+                    logout();
+                    return;
+                }
                 if (!res.ok) throw new Error("Failed to load history");
                 const data = await res.json();
                 allTranscripts = data.files || [];
@@ -541,19 +559,17 @@
         }
 
         async function deleteTranscript(filename) {
-            if (confirm(`Are you sure you want to delete ${filename}?`)) {
-                try {
-                    const res = await fetch(`/api/delete/${filename}`, {
-                        method: "DELETE",
-                        headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
-                    });
-                    if (!res.ok) throw new Error("Delete failed");
-                    loadHistory();
-                    showToast(`${filename} deleted.`, "info");
-                    closeTranscriptDetail();
-                } catch (err) {
-                    showToast("Delete error: " + err.message, "error");
-                }
+            try {
+                const res = await fetch(`/api/delete/${filename}`, {
+                    method: "DELETE",
+                    headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
+                });
+                if (!res.ok) throw new Error("Delete failed");
+                loadHistory();
+                showToast(`${filename} deleted.`, "info");
+                closeTranscriptDetail();
+            } catch (err) {
+                showToast("Delete error: " + err.message, "error");
             }
         }
 
@@ -765,12 +781,16 @@
         async function exportTranscriptAsPDF() { /* Unchanged */ }
 
         // --- GLOBAL LISTENERS & ONLOAD ---
+        // UPDATED: to handle new loggedOutControls
         window.onload = () => {
             const token = localStorage.getItem("accessToken");
+            const loggedOutControls = document.getElementById("loggedOutControls");
+
             if (token) {
                 currentUser = localStorage.getItem("userEmail") || "user";
                 document.getElementById("loginBox").style.display = "none";
                 document.getElementById("appUI").style.display = "block";
+                if (loggedOutControls) loggedOutControls.style.display = "none";
 
                 const displayName = localStorage.getItem("displayName");
                 document.getElementById("welcomeHeader").innerText = `Welcome, ${displayName || currentUser}`;
@@ -782,15 +802,17 @@
                     exportBtn.style.display = "inline-block";
                     exportBtn.onclick = () => window.open('/api/admin/log/export', '_blank');
                 }
-
-                if (localStorage.getItem("prefDark") === "true") {
-                    document.body.classList.add("dark");
-                }
                 loadHistory();
             } else {
                 document.getElementById("loginBox").style.display = "block";
                 document.getElementById("appUI").style.display = "none";
                 document.getElementById("registerBox").style.display = "none";
+                if (loggedOutControls) loggedOutControls.style.display = "block";
+            }
+
+            // Moved dark mode logic to run regardless of login state
+            if (localStorage.getItem("prefDark") === "true") {
+                document.body.classList.add("dark");
             }
         };
 
