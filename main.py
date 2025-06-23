@@ -1,4 +1,3 @@
-# ─────────────────────────────────────────────
 # Standard library imports
 import os
 import io
@@ -39,7 +38,7 @@ from upload_processor import transcribe_audio
 load_dotenv()
 
 
-router = APIRouter()
+# router = APIRouter() # We will not use a separate router for this file
 
 app = FastAPI()
 
@@ -51,7 +50,7 @@ def init_db():
 
 app.include_router(transcription_router)
 app.include_router(qa_router)
-app.include_router(router)  # This one includes routes from this same file
+# app.include_router(router)  # We removed the separate router, so we don't need to include it
 
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -98,7 +97,8 @@ async def serve_audio(filename: str):
     return FileResponse(filepath, media_type="audio/mpeg")
 
 
-@router.get("/api/transcripts")
+# CHANGE: Changed @router.get to @app.get
+@app.get("/api/transcripts")
 async def get_transcript_list(
     user=Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -117,12 +117,14 @@ async def get_transcript_list(
     }
 
 
-@router.get("/api/history")
+# CHANGE: Changed @router.get to @app.get
+@app.get("/api/history")
 async def api_history(user=Depends(get_current_user), db: Session = Depends(get_db)):
     return await get_transcript_list(user, db)
 
 
-@router.get("/api/transcript/{filename}")
+# CHANGE: Changed @router.get to @app.get
+@app.get("/api/transcript/{filename}")
 def get_transcript(
     filename: str,
     current_user: User = Depends(get_current_user)
@@ -147,7 +149,8 @@ def get_transcript(
     return JSONResponse(content={"transcript": text, "segments": segments})
 
 
-@router.post("/api/transcript/{filename}/segments")
+# CHANGE: Changed @router.post to @app.post
+@app.post("/api/transcript/{filename}/segments")
 async def save_segments(filename: str, segments_data: dict, user=Depends(get_current_user)):
     try:
         segments_path = os.path.join(
@@ -160,7 +163,8 @@ async def save_segments(filename: str, segments_data: dict, user=Depends(get_cur
             status_code=500, detail=f"Failed to save segments: {str(e)}")
 
 
-@router.get("/api/share/{filename}", response_model=None)
+# CHANGE: Changed @router.get to @app.get
+@app.get("/api/share/{filename}", response_model=None)
 async def get_shared_transcript(filename: str) -> Dict[str, str]:
     safe_filename = os.path.basename(filename)
     path = os.path.join(settings.transcript_dir, safe_filename)
@@ -177,7 +181,8 @@ async def get_shared_transcript(filename: str) -> Dict[str, str]:
             status_code=500, detail="Failed to read transcript")
 
 
-@router.get("/api/download/all")
+# CHANGE: Changed @router.get to @app.get
+@app.get("/api/download/all")
 async def download_all_transcripts(
     user=Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -199,7 +204,8 @@ async def download_all_transcripts(
     return StreamingResponse(memory_file, media_type="application/zip", headers=headers)
 
 
-@router.post("/api/upload")
+# CHANGE: Changed @router.post to @app.post
+@app.post("/api/upload")
 async def upload_file(
     file: UploadFile = File(...),
     user=Depends(get_current_user),
@@ -239,7 +245,8 @@ async def upload_file(
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
-@router.post("/api/quiz/generate")
+# CHANGE: Changed @router.post to @app.post
+@app.post("/api/quiz/generate")
 def generate_question(
     input_data: SegmentInput,
     user=Depends(get_current_user),
@@ -292,7 +299,8 @@ Question:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/api/quiz/{filename}")
+# CHANGE: Changed @router.get to @app.get
+@app.get("/api/quiz/{filename}")
 def get_saved_quiz(filename: str, user=Depends(get_current_user)):
     quiz_path = os.path.join(settings.transcript_dir, f"{filename}_quiz.json")
 
@@ -302,7 +310,7 @@ def get_saved_quiz(filename: str, user=Depends(get_current_user)):
     try:
         with open(quiz_path, "r", encoding="utf-8") as f:
             quiz_data = json.load(f)
-        return {"quiz": quiz_data}
+            return {"quiz": quiz_data}
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to load quiz")
 
