@@ -8,6 +8,8 @@ ENV PYTHONUNBUFFERED=1
 # Set working directory
 WORKDIR /app
 
+ENV PYTHONUNBUFFERED=1
+
 # Install system dependencies
 RUN apt-get update && \
     apt-get install -y ffmpeg git build-essential libpq-dev && \
@@ -15,6 +17,8 @@ RUN apt-get update && \
 
 # Copy project files
 COPY . .
+
+COPY .env .env
 
 # Install Python dependencies
 RUN pip install --upgrade pip

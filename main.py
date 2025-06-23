@@ -1,34 +1,34 @@
+from email_utils import send_email_with_attachment
+from qa_handler import router as qa_router
+from transcription_routes import router as transcription_router
+from typing import Dict, List, Any
+from zipfile import ZipFile
+import logging
+import aiofiles
+import json
+import io
+from email.message import EmailMessage
+import smtplib
+import subprocess
+import shutil
+import os
+from openai import OpenAI
+from config import settings
+from database import get_db, create_tables
+from auth import get_current_user
+from models import UserFile, User
+from sqlalchemy.orm import Session
+from datetime import datetime
 from fastapi import FastAPI, APIRouter, UploadFile, File, Depends, HTTPException, Header, Request, Body
 from pydantic import BaseModel
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime
-from sqlalchemy.orm import Session
-from models import UserFile, User
-from auth import get_current_user
-from database import get_db, create_tables
-from config import settings
-from openai import OpenAI
-import os
-import shutil
-import subprocess
-import smtplib
-from email.message import EmailMessage
-import io
-import json
-import aiofiles
-import logging
-from zipfile import ZipFile
-from typing import Dict, List, Any
-from transcription_routes import router as transcription_router
-from qa_handler import router as qa_router
-from email_utils import send_email_with_attachment
 from dotenv import load_dotenv
+load_dotenv()
+
 
 router = APIRouter()
-
-load_dotenv()
 
 
 app = FastAPI()

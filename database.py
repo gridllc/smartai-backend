@@ -1,13 +1,19 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from models import Base  # make sure this import exis
-import os
-
-# Load your PostgreSQL connection string from the environment
-DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Create the SQLAlchemy engine
-engine = create_engine(DATABASE_URL)
+
+
+def get_engine():
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set!")
+    return create_engine(database_url)
+
+
+engine = get_engine()
 
 # Create a configured "Session" class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
