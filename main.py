@@ -63,8 +63,10 @@ class SegmentInput(BaseModel):
 
 
 # Ensure the uploads directory exists
+# Ensure upload and transcript directories exist
 os.makedirs("uploads", exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+os.makedirs("transcripts", exist_ok=True)
+
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
