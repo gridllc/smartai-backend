@@ -41,7 +41,6 @@ load_dotenv()
 
 router = APIRouter()
 
-
 app = FastAPI()
 
 
