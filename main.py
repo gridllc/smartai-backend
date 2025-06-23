@@ -74,14 +74,10 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.mount("/transcripts", StaticFiles(directory="transcripts"),
           name="transcripts")
 
-# Root route
 
-
-@app.get("/")
+@app.get("/", include_in_schema=False)
 def root():
-    return {"message": "SmartAI is running."}
-
-# Serve uploaded audio directly
+    return FileResponse("static/index.html")
 
 
 @app.get("/audio/{filename}")
