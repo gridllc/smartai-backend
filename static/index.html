@@ -10,8 +10,10 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+    <link rel="icon" sizes="192x192" href="/static/android-chrome-192x192.png">
+    <link rel="icon" sizes="512x512" href="/static/android-chrome-512x512.png">
     <link rel="manifest" href="/static/site.webmanifest">
-    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+
 
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -273,7 +275,6 @@
         </div>
     </div>
 
-
     <!-- All other HTML from your original file is assumed to be here (login box, profile box, etc.) -->
     <div class="profile-overlay" id="profileOverlay" onclick="toggleProfile()"></div>
     <div class="profile-box" id="profileBox">...</div>
@@ -290,8 +291,7 @@
 
         <h1 id="welcomeHeader">SmartAI Audio Transcriber</h1>
         <input type="file" id="fileInput" />
-        <button id="uploadBtn">Upload</button>
-        <button onclick="uploadFile()">Upload & Transcribe</button>
+        <button id="uploadBtn">Upload & Transcribe</button>
 
         <!-- Search and Filter Controls -->
         <div style="margin: 15px 0;">
@@ -328,7 +328,7 @@
         // --- UI & UTILITY ---
         function showToast(message, type = "info") {
             let bg = { success: "#4CAF50", error: "#f44336", info: "#2196F3" }[type] || "#333";
-            Toastify({ text: message, duration: 3000, gravity: "top", position: "right", backgroundColor: bg }).showToast();
+            Toastify({ text: message, duration: 3000, gravity: "top", position: "right", style: { background: bg } }).showToast();
         }
 
         // --- AUTH & USER ---
@@ -383,10 +383,9 @@
 
         // --- CORE APP: UPLOAD, HISTORY, ASK ---
 
-
         async function loadHistory() {
             try {
-                const res = await fetch("/api/history", {
+                const res = await fetch("/api/transcripts", {
                     headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
                 });
                 if (!res.ok) throw new Error("Failed to load history");

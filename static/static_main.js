@@ -8,7 +8,9 @@ document.getElementById("uploadBtn").addEventListener("click", async () => {
             duration: 3000,
             gravity: "bottom",
             position: "center",
-            backgroundColor: "#ff5c5c"
+            style: {
+                background: "#ff5c5c"
+            }
         }).showToast();
         return;
     }
@@ -45,7 +47,9 @@ document.getElementById("uploadBtn").addEventListener("click", async () => {
             duration: 4000,
             gravity: "bottom",
             position: "center",
-            backgroundColor: "#4BB543"
+            style: {
+                background: "#4BB543"
+            }
         }).showToast();
 
         // Optional: reload or update transcript list
@@ -59,10 +63,12 @@ document.getElementById("uploadBtn").addEventListener("click", async () => {
             duration: 4000,
             gravity: "bottom",
             position: "center",
-            backgroundColor: "#ff5c5c"
+            style: {
+                background: "#ff5c5c"
+            }
         }).showToast();
     } finally {
         uploadBtn.disabled = false;
-        uploadBtn.textContent = "Upload";
+        uploadBtn.textContent = "Upload & Transcribe";
     }
 });
