@@ -9,5 +9,8 @@ transcripts/
 api.txt
 venv/
 __pycache__/
-*.pyc
+*.pyo
+*.pyd
 venv310/
+*.db
+*.log
