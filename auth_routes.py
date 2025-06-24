@@ -1,20 +1,16 @@
-import sqlite3
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
-from fastapi import Response, Cookie
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, Cookie
+from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-from auth import authenticate_user, create_access_token, get_current_user
-from auth import register_user
-from auth import create_refresh_token, decode_refresh_token
+from auth import (
+    authenticate_user, create_access_token, create_refresh_token,
+    decode_refresh_token, get_current_user, register_user
+)
 from database import get_db
-from models import Base
-from pydantic import BaseModel
 
-router = APIRouter()
+router = APIRouter(prefix="/auth")
 limiter = Limiter(key_func=get_remote_address)
 
 
@@ -26,45 +22,35 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     email: str
     password: str
+    name: Optional[str] = None
 
 
 @router.post("/register")
 @limiter.limit("5/minute")
 async def register(request: Request, payload: RegisterRequest, db: Session = Depends(get_db)):
-    try:
-        register_user(db, payload.email, payload.password)
-        return {"message": "User registered successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    register_user(db, payload.email, payload.password, name=payload.name)
+    return {"message": "User registered successfully"}
 
 
 @router.post("/login")
 async def login(request: Request, response: Response, payload: LoginRequest, db: Session = Depends(get_db)):
-    try:
-        user = authenticate_user(db, payload.email, payload.password)
-        access_token = create_access_token(data={"sub": user.email})
-        refresh_token = create_refresh_token(
-            data={"sub": user.email})  # this must exist already
+    user = authenticate_user(db, payload.email, payload.password)
+    access_token = create_access_token(data={"sub": user.email})
+    refresh_token = create_refresh_token(data={"sub": user.email})
 
-        # Set refresh token in HTTP-only secure cookie
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            httponly=True,
-            secure=True,
-            samesite="lax",
-            max_age=7 * 24 * 60 * 60  # 7 days
-        )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=7 * 24 * 60 * 60  # 7 days
+    )
 
-        return {
-            "access_token": access_token,
-            "token_type": "bearer"
-        }
-
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-# Create a refresh token with a 7-day expiration.
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
 
 
 @router.post("/refresh-token")
@@ -83,7 +69,7 @@ def refresh_token(response: Response, refresh_token: Optional[str] = Cookie(None
         return {
             "access_token": access_token,
             "user_email": user_email,
-            "display_name": user_email.split("@")[0]  # optional
+            "display_name": user_email.split("@")[0]
         }
     except HTTPException:
         raise
