@@ -2,6 +2,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from fastapi import Request, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Header, Cookie
 from models import User
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
@@ -11,7 +12,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# JWT configuration
+router = APIRouter()
+
+
+@router.post("/login")
+def login(...):
+
+    # JWT configuration
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "supersecret")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
@@ -44,23 +51,35 @@ def authenticate_user(db: Session, email: str, password: str) -> User:
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-) -> User:
+    db: Session = Depends(get_db),
+    authorization: str = Header(default=None),
+    access_token_cookie: str = Cookie(default=None, alias="access_token")
+):
+    token = None
+
+    # Check header first, then cookie
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[len("Bearer "):]
+    elif access_token_cookie:
+        token = access_token_cookie
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing token")
+
     try:
-        payload = jwt.decode(credentials.credentials,
-                             SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
         email = payload.get("sub")
         if email is None:
-            raise HTTPException(
-                status_code=401, detail="Invalid token payload")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(status_code=401, detail="Invalid token")
 
-    user = db.query(User).filter(User.email == email).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
+        user = db.query(User).filter(User.email == email).first()
+        if user is None:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        return user
+
+    except JWTError:
+        raise HTTPException(status_code=403, detail="Invalid or expired token")
 
 
 def register_user(db: Session, email: str, password: str) -> User:
@@ -72,6 +91,13 @@ def register_user(db: Session, email: str, password: str) -> User:
     db.commit()
     db.refresh(new_user)
     return new_user
+
+
+def create_refresh_token(data: dict) -> str:
+    expire = datetime.utcnow() + timedelta(days=7)
+    to_encode = data.copy()
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 # For manual token validation (e.g. request injection)
 

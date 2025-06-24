@@ -31,7 +31,7 @@ from dotenv import load_dotenv
 from config import settings
 from database import get_db, create_tables
 from auth import get_current_user
-from auth import router as auth_router
+from auth_routes import router as auth_router
 from models import UserFile, User
 from qa_handler import router as qa_router
 from transcription_routes import router as transcription_router
@@ -42,6 +42,7 @@ load_dotenv()
 # router = APIRouter() # We will not use a separate router for this file
 
 app = FastAPI()
+app.include_router(auth_router)
 
 
 @app.on_event("startup")

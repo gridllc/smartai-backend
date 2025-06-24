@@ -72,3 +72,49 @@ document.getElementById("uploadBtn").addEventListener("click", async () => {
         uploadBtn.textContent = "Upload & Transcribe";
     }
 });
+
+
+async function tryAutoRefreshToken() {
+    try {
+        const res = await fetch("/refresh-token", {
+            method: "POST",
+            credentials: "include"  // send refresh_token cookie
+        });
+
+        if (!res.ok) throw new Error("Token refresh failed");
+
+        const data = await res.json();
+        localStorage.setItem("accessToken", data.access_token);
+        return true;
+    } catch (err) {
+        console.warn("Auto token refresh failed:", err.message);
+        return false;
+    }
+}
+
+async function loadHistory() {
+    try {
+        let res = await fetch("/api/transcripts", {
+            headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
+        });
+
+        if (res.status === 401) {
+            const refreshed = await tryAutoRefreshToken();
+            if (refreshed) {
+                res = await fetch("/api/transcripts", {
+                    headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
+                });
+            } else {
+                showToast("Session expired. Please log in again.", "error");
+                logout();
+                return;
+            }
+        }
+
+        const data = await res.json();
+        allTranscripts = data.files || [];
+        filterTranscripts();
+    } catch (err) {
+        showToast("Error loading history: " + err.message, "error");
+    }
+}

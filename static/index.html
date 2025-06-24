@@ -338,15 +338,60 @@
         let audioHighlightInterval = null;
         let pendingDeleteFilename = null;
 
+        // --- AUTH & FETCH WRAPPER ---
+
+        /**
+         * A wrapper for the fetch API that automatically handles JWT token refresh.
+         * If a 401 Unauthorized is received, it attempts to refresh the token and retries the request once.
+         * @param {string} url The URL to fetch.
+         * @param {object} options The options for the fetch request.
+         * @param {number} attempt The attempt number (internal use for preventing infinite loops).
+         * @returns {Promise<Response>} The fetch response.
+         */
+        async function fetchWithRefresh(url, options = {}, attempt = 0) {
+            const token = localStorage.getItem("accessToken");
+            // Ensure headers object exists
+            options.headers = options.headers || {};
+            // Add Authorization header
+            if (token) {
+                options.headers["Authorization"] = `Bearer ${token}`;
+            }
+
+            const res = await fetch(url, options);
+
+            if (res.status === 401 && attempt === 0) {
+                console.log("Access token expired. Attempting to refresh...");
+                try {
+                    const refreshRes = await fetch("/refresh-token", {
+                        method: "POST",
+                        credentials: "include", // Important for sending the httpOnly refresh cookie
+                    });
+
+                    if (!refreshRes.ok) throw new Error("Could not refresh token.");
+
+                    const data = await refreshRes.json();
+                    localStorage.setItem("accessToken", data.access_token);
+                    console.log("Token refreshed successfully. Retrying original request.");
+
+                    // Retry original request with the new token
+                    return fetchWithRefresh(url, options, 1);
+                } catch (e) {
+                    console.error("Token refresh failed:", e.message);
+                    showToast("Session expired. Please log in again.", "error");
+                    logout(); // Log out the user if refresh fails
+                    throw new Error("Unable to refresh token");
+                }
+            }
+            return res;
+        }
+
         // --- UI & UTILITY ---
         function showToast(message, type = "info") {
             let bg = { success: "#4CAF50", error: "#f44336", info: "#2196F3" }[type] || "#333";
             Toastify({ text: message, duration: 3000, gravity: "top", position: "right", style: { background: bg } }).showToast();
         }
 
-        // ADDED: Function to fix ReferenceError
         function toggleProfile() {
-            // This is a basic implementation. You can make it more sophisticated.
             const profileBox = document.getElementById("profileBox");
             const overlay = document.getElementById("profileOverlay");
             const isVisible = profileBox.style.display === "block";
@@ -354,23 +399,28 @@
             if (overlay) overlay.style.display = isVisible ? "none" : "block";
         }
 
-
         // --- AUTH & USER ---
         function login() {
             const email = document.getElementById("loginEmail").value;
             const password = document.getElementById("loginPassword").value;
             fetch("/login", {
-                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password })
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include", // Include cookies
+                body: JSON.stringify({ email, password })
             }).then(res => {
                 if (!res.ok) throw new Error("Login failed");
                 return res.json();
             }).then(data => {
                 localStorage.setItem("accessToken", data.access_token);
                 localStorage.setItem("userEmail", email);
-                window.onload(); // Re-run init logic
                 showToast("Login successful", "success");
-            }).catch(err => { showToast("Login error: " + err.message, "error"); });
+                window.onload(); // Re-run init
+            }).catch(err => {
+                showToast("Login error: " + err.message, "error");
+            });
         }
+
 
         function register() {
             const full_name = document.getElementById("registerName").value;
@@ -431,10 +481,8 @@
 
         async function loadHistory() {
             try {
-                const res = await fetch("/api/transcripts", {
-                    headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
-                });
-                if (res.status === 401) {
+                const res = await fetchWithRefresh("/api/transcripts");
+                if (res.status === 401) { // Should be handled by fetchWithRefresh, but as a fallback
                     showToast("Session expired. Please log in again.", "error");
                     logout();
                     return;
@@ -505,25 +553,24 @@
 
         async function updateTag(filename, tag) {
             try {
-                const res = await fetch(`/api/transcript/${filename}/tag`, {
+                const res = await fetchWithRefresh(`/api/transcript/${filename}/tag`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("accessToken") },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ tag })
                 });
                 if (!res.ok) throw new Error("Failed to update tag");
-                showToast("Tag saved!", "success"); // Added toast
-                loadHistory(); // Reload to show updated tag
+                showToast("Tag saved!", "success");
+                loadHistory();
             } catch (err) {
                 showToast("Error updating tag: " + err.message, "error");
             }
         }
 
         async function askQuestion() {
-            // This function remains unchanged from your provided source
+
             const questionInput = document.getElementById("questionInput");
             const question = questionInput.value.trim();
             if (!question) return showToast("Please enter a question.", "error");
-
             const answerText = document.getElementById("answerText");
             const sourcesBox = document.getElementById("sourcesBox");
             answerText.textContent = "";
@@ -532,9 +579,9 @@
             spinner.style.display = "inline-block";
 
             try {
-                const response = await fetch("/ask", {
+                const response = await fetchWithRefresh("/ask", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("accessToken") },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ question })
                 });
 
@@ -593,9 +640,8 @@
 
         async function deleteTranscript(filename) {
             try {
-                const res = await fetch(`/api/delete/${filename}`, {
-                    method: "DELETE",
-                    headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") }
+                const res = await fetchWithRefresh(`/api/delete/${filename}`, {
+                    method: "DELETE"
                 });
                 if (!res.ok) throw new Error("Delete failed");
                 loadHistory();
@@ -608,12 +654,10 @@
 
         // --- TRANSCRIPT DETAIL VIEW ---
         async function loadTranscriptForDetailView(filename) {
-            // Highlight active item in history
             document.querySelectorAll('.history-item.active').forEach(el => el.classList.remove('active'));
             const itemDiv = document.getElementById(`history-item-${filename.replace(/[^a-zA-Z0-9]/g, '-')}`);
             if (itemDiv) itemDiv.classList.add("active");
 
-            // Reset state
             closeTranscriptDetail();
             editMode = false;
 
@@ -632,9 +676,9 @@
 
             try {
                 const [transcriptRes, noteRes, audioRes] = await Promise.all([
-                    fetch(`/api/transcript/${filename}`, { headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") } }),
-                    fetch(`/api/transcript/${filename}/note`, { headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") } }),
-                    fetch(`/audio/${filename}`, { headers: { "Authorization": "Bearer " + localStorage.getItem("accessToken") } })
+                    fetchWithRefresh(`/api/transcript/${filename}`),
+                    fetchWithRefresh(`/api/transcript/${filename}/note`),
+                    fetchWithRefresh(`/audio/${filename}`)
                 ]);
 
                 if (!transcriptRes.ok) throw new Error("Transcript load failed");
@@ -760,16 +804,16 @@
             }));
 
             try {
-                const res = await fetch(`/api/transcript/${filename}/segments`, {
+                const res = await fetchWithRefresh(`/api/transcript/${filename}/segments`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("accessToken") },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ segments: updatedSegments })
                 });
                 if (!res.ok) throw new Error("Failed to save segments");
                 document.getElementById("lastSavedTime").innerText = `Last saved: ${new Date().toLocaleTimeString()}`;
             } catch (err) {
                 showToast("Error saving segments: " + err.message, "error");
-                throw err; // Re-throw for Promise.all
+                throw err;
             }
         }
 
@@ -780,16 +824,16 @@
             if (!filename) return;
 
             try {
-                const res = await fetch(`/api/transcript/${filename}/note`, {
+                const res = await fetchWithRefresh(`/api/transcript/${filename}/note`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("accessToken") },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ note })
                 });
                 if (!res.ok) throw new Error("Note save failed");
                 document.getElementById("lastSavedTime").innerText = `Last saved: ${new Date().toLocaleTimeString()}`;
             } catch (err) {
                 showToast("Note save error: " + err.message, "error");
-                throw err; // Re-throw for Promise.all
+                throw err;
             }
         }
 
@@ -797,7 +841,6 @@
             try {
                 await Promise.all([saveEditedSegments(), saveNote()]);
                 showToast("All changes saved!", "success");
-                // Reload to show saved state cleanly and exit edit mode
                 await loadTranscriptForDetailView(document.getElementById("noteInput").dataset.filename);
             } catch (err) {
                 showToast("An error occurred during save.", "error");
@@ -814,7 +857,6 @@
         async function exportTranscriptAsPDF() { /* Unchanged */ }
 
         // --- GLOBAL LISTENERS & ONLOAD ---
-        // UPDATED: to handle new loggedOutControls
         window.onload = () => {
             const token = localStorage.getItem("accessToken");
             const loggedOutControls = document.getElementById("loggedOutControls");
@@ -828,8 +870,7 @@
                 const displayName = localStorage.getItem("displayName");
                 document.getElementById("welcomeHeader").innerText = `Welcome, ${displayName || currentUser}`;
 
-                // Admin-specific UI
-                if (currentUser === "patrick@gridllc.net") { // Replace with your admin check
+                if (currentUser === "patrick@gridllc.net") {
                     document.getElementById("analyticsToggle").style.display = "inline-block";
                     const exportBtn = document.getElementById("exportLogBtn");
                     exportBtn.style.display = "inline-block";
@@ -843,7 +884,6 @@
                 if (loggedOutControls) loggedOutControls.style.display = "block";
             }
 
-            // Moved dark mode logic to run regardless of login state
             if (localStorage.getItem("prefDark") === "true") {
                 document.body.classList.add("dark");
             }
@@ -855,7 +895,6 @@
         }
 
         document.addEventListener('keydown', (e) => {
-            // Close modals with Escape key
             if (e.key === "Escape") {
                 document.querySelectorAll('.modal, .overlay').forEach(el => {
                     if (el.style.display !== 'none') {
@@ -863,7 +902,6 @@
                     }
                 });
             }
-            // Toggle dark mode with Ctrl + D
             if (e.ctrlKey && e.key.toLowerCase() === 'd') {
                 e.preventDefault();
                 toggleDarkMode();

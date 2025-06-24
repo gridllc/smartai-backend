@@ -1,6 +1,7 @@
 import sqlite3
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
+from fastapi import Response, Cookie
 from sqlalchemy.orm import Session
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -36,11 +37,68 @@ async def register(request: Request, payload: RegisterRequest, db: Session = Dep
 
 
 @router.post("/login")
-@limiter.limit("10/minute")
-async def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)):
+async def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db), response: Response):
     try:
         user = authenticate_user(db, payload.email, payload.password)
-        token = create_access_token(data={"sub": user.email})
-        return {"access_token": token, "token_type": "bearer"}
-    except Exception as e:
+        access_token = create_access_token(data={"sub": user.email})
+        refresh_token = create_refresh_token(
+            data={"sub": user.email})  # this must exist already
+
+        # Set refresh token in HTTP-only secure cookie
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=7 * 24 * 60 * 60  # 7 days
+        )
+
+        return {
+            "access_token": access_token,
+            "token_type": "bearer"
+        }
+
+    except Exception:
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+# Create a refresh token with a 7-day expiration.
+
+
+@router.post("/refresh-token")
+def refresh_token(
+    response: Response,
+    refresh_token: str = Cookie(None)
+):
+    if not refresh_token:
+        raise HTTPException(
+            status_code=401, detail="No refresh token provided")
+
+    try:
+        # Decode and validate token
+        # Your helper should do jwt.decode + expiry check
+        payload = decode_refresh_token(refresh_token)
+        email = payload.get("sub")
+        if not email:
+            raise HTTPException(
+                status_code=401, detail="Invalid refresh token payload")
+
+        # Generate new tokens
+        new_access_token = create_access_token({"sub": email})
+        new_refresh_token = create_refresh_token({"sub": email})
+
+        # Set refreshed token in cookie
+        response.set_cookie(
+            key="refresh_token",
+            value=new_refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=7 * 24 * 60 * 60  # 7 days
+        )
+
+        return {"access_token": new_access_token}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=401, detail=f"Refresh failed: {str(e)}")
