@@ -38,7 +38,7 @@ async def register(request: Request, payload: RegisterRequest, db: Session = Dep
 
 
 @router.post("/login")
-async def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db), response: Response):
+async def login(request: Request, response: Response, payload: LoginRequest, db: Session = Depends(get_db)):
     try:
         user = authenticate_user(db, payload.email, payload.password)
         access_token = create_access_token(data={"sub": user.email})
