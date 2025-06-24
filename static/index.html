@@ -390,25 +390,27 @@
             try {
                 const refreshRes = await fetch("/refresh-token", {
                     method: "POST",
-                    credentials: "include", // This is crucial for sending the httpOnly cookie
+                    credentials: "include",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
                 });
 
                 if (!refreshRes.ok) {
-                    // This is expected if the user is not logged in or the refresh token is invalid.
                     console.log("No active session found via refresh token.");
-                    return; // Fail silently
+                    return false;
                 }
 
                 const data = await refreshRes.json();
                 localStorage.setItem("accessToken", data.access_token);
-                // Assume the backend returns user info needed for the UI on successful refresh
                 if (data.user_email) localStorage.setItem("userEmail", data.user_email);
                 if (data.display_name) localStorage.setItem("displayName", data.display_name);
-                console.log("Silent refresh successful. User is logged in.");
 
+                console.log("Silent refresh successful. User is logged in.");
+                return true;
             } catch (e) {
-                // This would typically be a network error.
                 console.error("Error during silent token refresh:", e);
+                return false;
             }
         }
 
@@ -431,22 +433,40 @@
         function login() {
             const email = document.getElementById("loginEmail").value;
             const password = document.getElementById("loginPassword").value;
+
+            if (!email || !password) {
+                showToast("Please enter both email and password", "error");
+                return;
+            }
+
             fetch("/login", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include", // Include cookies
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                credentials: "include", // crucial for refresh cookie
                 body: JSON.stringify({ email, password })
-            }).then(res => {
-                if (!res.ok) throw new Error("Login failed");
-                return res.json();
-            }).then(data => {
-                localStorage.setItem("accessToken", data.access_token);
-                localStorage.setItem("userEmail", email);
-                showToast("Login successful", "success");
-                window.onload(); // Re-run init
-            }).catch(err => {
-                showToast("Login error: " + err.message, "error");
-            });
+            })
+                .then(res => {
+                    if (!res.ok) {
+                        return res.json().then(err => {
+                            throw new Error(err.detail || "Login failed");
+                        });
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    localStorage.setItem("accessToken", data.access_token);
+                    localStorage.setItem("userEmail", data.user_email || email);
+                    localStorage.setItem("displayName", data.display_name || email.split("@")[0]);
+                    showToast("Login successful", "success");
+                    window.onload(); // re-run init logic (or window.location.reload() if needed)
+                })
+                .catch(err => {
+                    console.error("Login error:", err);
+                    showToast("Login error: " + err.message, "error");
+                });
         }
 
 
@@ -454,21 +474,55 @@
             const full_name = document.getElementById("registerName").value;
             const email = document.getElementById("registerEmail").value;
             const password = document.getElementById("registerPassword").value;
-            const invite_code = document.getElementById("registerCode").value;
+            const invite_code = document.getElementById("registerCode")?.value || "";
+
+            if (!email || !password) {
+                showToast("Please enter both email and password", "error");
+                return;
+            }
+
             fetch("/register", {
-                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, full_name, invite_code })
-            }).then(res => {
-                if (!res.ok) throw new Error("Registration failed");
-                return res.json();
-            }).then(() => {
-                showToast("Account created! Please login.", "success");
-                showLogin();
-            }).catch(err => { showToast("Registration error: " + err.message, "error"); });
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                body: JSON.stringify({ email, password, full_name: full_name || email, invite_code })
+            })
+                .then(res => {
+                    if (!res.ok) {
+                        return res.json().then(err => {
+                            throw new Error(err.detail || "Registration failed");
+                        });
+                    }
+                    return res.json();
+                })
+                .then(() => {
+                    showToast("Account created! Please login.", "success");
+                    showLogin();
+                })
+                .catch(err => {
+                    console.error("Registration error:", err);
+                    showToast("Registration error: " + err.message, "error");
+                });
         }
 
         function logout() {
+            // Clear LocalStorage
             localStorage.clear();
-            window.location.reload();
+
+            // Call Logout endpoint to clear cookies
+            fetch("/logout", {
+                method: "POST",
+                credentials: "include"
+            })
+                .then(() => {
+                    window.location.reload();
+                })
+                .catch(() => {
+                    // Even if logout endpoint fails, still reload
+                    window.location.reload();
+                });
         }
 
         function showRegister() {
@@ -883,21 +937,22 @@
 
         window.onload = async () => {
             // First, try to silently log in using the refresh token cookie.
-            await tryRefreshToken();
+            const refreshSuccess = await tryRefreshToken();
 
-            // Now, check if an access token exists in localStorage.
+            // Now, check if an access token exists in LocalStorage.
             const token = localStorage.getItem("accessToken");
             const loggedOutControls = document.getElementById("loggedOutControls");
 
-            if (token) {
-                // If token exists, show the main app UI.
-                currentUser = localStorage.getItem("userEmail") || "user";
+            if (token || refreshSuccess) {
+                // Show main app UI
+                const currentUser = localStorage.getItem("userEmail") || "user";
                 document.getElementById("loginBox").style.display = "none";
                 document.getElementById("appUI").style.display = "block";
                 if (loggedOutControls) loggedOutControls.style.display = "none";
 
                 const displayName = localStorage.getItem("displayName");
-                document.getElementById("welcomeHeader").innerText = `Welcome, ${displayName || currentUser}`;
+                document.getElementById("welcomeHeader").innerText =
+                    `Welcome, ${displayName || currentUser}`;
 
                 // Admin-specific UI
                 if (currentUser === "patrick@gridllc.net") {
@@ -906,21 +961,22 @@
                     exportBtn.style.display = "inline-block";
                     exportBtn.onclick = () => window.open('/api/admin/log/export', '_blank');
                 }
+
                 loadHistory();
+
             } else {
-                // If no token, show the login/register UI.
+                // Show login/register UI
                 document.getElementById("loginBox").style.display = "block";
                 document.getElementById("appUI").style.display = "none";
                 document.getElementById("registerBox").style.display = "none";
                 if (loggedOutControls) loggedOutControls.style.display = "block";
             }
 
-            // Apply dark mode preference regardless of login state.
+            // Apply dark mode regardless of login state.
             if (localStorage.getItem("prefDark") === "true") {
                 document.body.classList.add("dark");
             }
         };
-
 
         function toggleDarkMode() {
             document.body.classList.toggle("dark");

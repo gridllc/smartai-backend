@@ -7,7 +7,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from auth import authenticate_user, create_access_token, get_current_user
-from auth import create_refresh_token
+from auth import create_refresh_token, decode_refresh_token
 from database import get_db
 from models import Base
 from pydantic import BaseModel
@@ -66,39 +66,22 @@ async def login(request: Request, response: Response, payload: LoginRequest, db:
 
 
 @router.post("/refresh-token")
-def refresh_token(
-    response: Response,
-    refresh_token: str = Cookie(None)
-):
+def refresh_token(response: Response, refresh_token: Optional[str] = Cookie(None)):
     if not refresh_token:
-        raise HTTPException(
-            status_code=401, detail="No refresh token provided")
+        raise HTTPException(status_code=401, detail="No refresh token")
 
     try:
-        # Decode and validate token
-        # Your helper should do jwt.decode + expiry check
         payload = decode_refresh_token(refresh_token)
-        email = payload.get("sub")
-        if not email:
+        user_email = payload.get("sub")
+        if not user_email:
             raise HTTPException(
-                status_code=401, detail="Invalid refresh token payload")
+                status_code=401, detail="Invalid refresh payload")
 
-        # Generate new tokens
-        new_access_token = create_access_token({"sub": email})
-        new_refresh_token = create_refresh_token({"sub": email})
-
-        # Set refreshed token in cookie
-        response.set_cookie(
-            key="refresh_token",
-            value=new_refresh_token,
-            httponly=True,
-            secure=True,
-            samesite="lax",
-            max_age=7 * 24 * 60 * 60  # 7 days
-        )
-
-        return {"access_token": new_access_token}
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=401, detail=f"Refresh failed: {str(e)}")
+        access_token = create_access_token(data={"sub": user_email})
+        return {
+            "access_token": access_token,
+            "user_email": user_email,
+            "display_name": user_email.split("@")[0]  # optional
+        }
+    except HTTPException:
+        raise

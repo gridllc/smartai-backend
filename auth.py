@@ -19,7 +19,7 @@ load_dotenv()
 # ─────────────────────────────────────────────
 # JWT + Password Configuration
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "supersecret")
+SECRET_KEY = settings.secret_key
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour
 
@@ -51,6 +51,16 @@ def create_refresh_token(data: dict) -> str:
     to_encode = data.copy()
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def decode_refresh_token(token: str):
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY,
+                             algorithms=[settings.ALGORITHM])
+        # Or extract specific fields like payload.get("sub") if needed
+        return payload
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
 
 
 # ────────────── AUTH ROUTES ──────────────

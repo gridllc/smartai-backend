@@ -74,23 +74,35 @@ document.getElementById("uploadBtn").addEventListener("click", async () => {
 });
 
 
-async function tryAutoRefreshToken() {
+async function tryRefreshToken() {
+    console.log("Attempting to refresh token on page load...");
     try {
-        const res = await fetch("/refresh-token", {
+        const refreshRes = await fetch("/refresh-token", {
             method: "POST",
-            credentials: "include"  // send refresh_token cookie
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json"
+            }
         });
 
-        if (!res.ok) throw new Error("Token refresh failed");
+        if (!refreshRes.ok) {
+            console.log("No active session found via refresh token.");
+            return false;
+        }
 
-        const data = await res.json();
+        const data = await refreshRes.json();
         localStorage.setItem("accessToken", data.access_token);
+        if (data.user_email) localStorage.setItem("userEmail", data.user_email);
+        if (data.display_name) localStorage.setItem("displayName", data.display_name);
+
+        console.log("Silent refresh successful. User is logged in.");
         return true;
-    } catch (err) {
-        console.warn("Auto token refresh failed:", err.message);
+    } catch (e) {
+        console.error("Error during silent token refresh:", e);
         return false;
     }
 }
+
 
 async function loadHistory() {
     try {

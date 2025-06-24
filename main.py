@@ -42,6 +42,8 @@ load_dotenv()
 # router = APIRouter() # We will not use a separate router for this file
 
 app = FastAPI()
+app.include_router(transcription_router)
+app.include_router(qa_router)
 app.include_router(auth_router)
 
 
@@ -50,19 +52,12 @@ def init_db():
     create_tables()
 
 
-app.include_router(transcription_router)
-app.include_router(qa_router)
-app.include_router(auth_router)
-
-# app.include_router(router)  # We removed the separate router, so we don't need to include it
-
-
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # CORS (allow all for dev)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://smartai-backend.onrender.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
