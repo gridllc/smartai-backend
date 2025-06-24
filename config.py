@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     # OpenAI
     openai_api_key: str = Field(..., env="OPENAI_API_KEY")
 
+    # JWT secret key
+    jwt_secret_key: str = Field(..., env="JWT_SECRET_KEY")
+
     # Email configuration (optional)
     email_host: str = Field(default="", env="EMAIL_HOST")
     email_port: int = Field(default=587, env="EMAIL_PORT")

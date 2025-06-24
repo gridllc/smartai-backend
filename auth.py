@@ -19,7 +19,7 @@ load_dotenv()
 # ─────────────────────────────────────────────
 # JWT + Password Configuration
 
-SECRET_KEY = settings.secret_key
+SECRET_KEY = settings.jwt_secret_key
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour
 
