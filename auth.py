@@ -64,6 +64,19 @@ def decode_refresh_token(token: str):
 
 
 # ────────────── AUTH ROUTES ──────────────
+@router.post("/register")
+def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.email == payload.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    hashed_pw = get_password_hash(payload.password)
+    user = User(name=payload.name, email=payload.email, password=hashed_pw)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"message": "User created successfully"}
+
 
 @router.post("/login")
 def login(

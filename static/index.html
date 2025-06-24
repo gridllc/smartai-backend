@@ -474,7 +474,7 @@
 
 
         function register() {
-            const full_name = document.getElementById("registerName").value;
+            const name = document.getElementById("registerName").value;
             const email = document.getElementById("registerEmail").value;
             const password = document.getElementById("registerPassword").value;
             const invite_code = document.getElementById("registerCode")?.value || "";
@@ -490,7 +490,7 @@
                     "Content-Type": "application/json",
                     "Accept": "application/json"
                 },
-                body: JSON.stringify({ email, password, full_name: full_name || email, invite_code })
+                body: JSON.stringify({ name, email, password })
             })
                 .then(res => {
                     if (!res.ok) {
