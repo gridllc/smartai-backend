@@ -3,6 +3,7 @@ from fastapi import (APIRouter, Depends, HTTPException,
                      Request, Response, Header, Cookie)
 from fastapi.security import HTTPBearer
 from datetime import datetime, timedelta
+from schemas import LoginRequest
 from typing import Optional
 from dotenv import load_dotenv
 from jose import JWTError, jwt
