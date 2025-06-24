@@ -1,17 +1,13 @@
 import os
+from fastapi import (APIRouter, Depends, HTTPException,
+                     Request, Response, Header, Cookie)
+from fastapi.security import HTTPBearer
 from datetime import datetime, timedelta
 from typing import Optional
-
 from dotenv import load_dotenv
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
-from fastapi import (
-    APIRouter, Depends, HTTPException, Request,
-    Response, Header, Cookie
-)
-from fastapi.security import HTTPBearer
-
 from models import User
 from database import get_db
 from config import settings
