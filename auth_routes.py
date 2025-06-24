@@ -2,6 +2,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi import Response, Cookie
+from typing import Optional
 from sqlalchemy.orm import Session
 from slowapi import Limiter
 from slowapi.util import get_remote_address
