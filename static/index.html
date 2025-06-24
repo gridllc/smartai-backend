@@ -391,7 +391,7 @@
         async function tryRefreshToken() {
             console.log("Attempting to refresh token on page load...");
             try {
-                const refreshRes = await fetch("/refresh-token", {
+                const refreshRes = await fetch("/auth/refresh-token", { // <--- CORRECTED PATH
                     method: "POST",
                     credentials: "include",
                     headers: {
@@ -442,7 +442,7 @@
                 return;
             }
 
-            fetch("/login", {
+            fetch("/auth/login", { // <--- CORRECTED PATH
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -484,7 +484,7 @@
                 return;
             }
 
-            fetch("/register", {
+            fetch("/auth/register", { // <--- CORRECTED PATH
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -515,7 +515,7 @@
             localStorage.clear();
 
             // Call Logout endpoint to clear cookies
-            fetch("/logout", {
+            fetch("/auth/logout", {
                 method: "POST",
                 credentials: "include"
             })

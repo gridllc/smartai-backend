@@ -1,6 +1,7 @@
 import os
 from fastapi import Depends, HTTPException, Header, Cookie
 from fastapi.security import HTTPBearer
+from schemas import LoginRequest, RegisterRequest
 from datetime import datetime, timedelta
 from typing import Optional
 from dotenv import load_dotenv

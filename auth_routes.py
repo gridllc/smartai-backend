@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, Cookie
 from pydantic import BaseModel
+from schemas import LoginRequest, RegisterRequest
 from typing import Optional
 from sqlalchemy.orm import Session
 from slowapi import Limiter
@@ -73,3 +74,9 @@ def refresh_token(response: Response, refresh_token: Optional[str] = Cookie(None
         }
     except HTTPException:
         raise
+
+
+@router.post("/logout")
+def logout(response: Response):
+    response.delete_cookie(key="refresh_token")
+    return {"message": "Logout successful"}
