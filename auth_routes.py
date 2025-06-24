@@ -8,6 +8,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from auth import authenticate_user, register_user, create_access_token, get_current_user
+from auth import create_refresh_token
 from database import get_db
 from models import Base
 from pydantic import BaseModel

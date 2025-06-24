@@ -16,7 +16,7 @@ router = APIRouter()
 
 
 @router.post("/login")
-def login(...):
+def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db), response: Response):
 
     # JWT configuration
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "supersecret")

@@ -857,7 +857,10 @@
         async function exportTranscriptAsPDF() { /* Unchanged */ }
 
         // --- GLOBAL LISTENERS & ONLOAD ---
-        window.onload = () => {
+
+        window.onload = async () => {
+            await tryRefreshToken();  // 🔁 Attempt silent login from cookie
+
             const token = localStorage.getItem("accessToken");
             const loggedOutControls = document.getElementById("loggedOutControls");
 
@@ -870,12 +873,14 @@
                 const displayName = localStorage.getItem("displayName");
                 document.getElementById("welcomeHeader").innerText = `Welcome, ${displayName || currentUser}`;
 
+                // Admin-specific UI
                 if (currentUser === "patrick@gridllc.net") {
                     document.getElementById("analyticsToggle").style.display = "inline-block";
                     const exportBtn = document.getElementById("exportLogBtn");
                     exportBtn.style.display = "inline-block";
                     exportBtn.onclick = () => window.open('/api/admin/log/export', '_blank');
                 }
+
                 loadHistory();
             } else {
                 document.getElementById("loginBox").style.display = "block";
@@ -884,10 +889,12 @@
                 if (loggedOutControls) loggedOutControls.style.display = "block";
             }
 
+            // Dark mode preference
             if (localStorage.getItem("prefDark") === "true") {
                 document.body.classList.add("dark");
             }
         };
+
 
         function toggleDarkMode() {
             document.body.classList.toggle("dark");
