@@ -31,6 +31,7 @@ from dotenv import load_dotenv
 from config import settings
 from database import get_db, create_tables
 from auth import get_current_user
+from auth import router as auth_router
 from models import UserFile, User
 from qa_handler import router as qa_router
 from transcription_routes import router as transcription_router
@@ -50,6 +51,8 @@ def init_db():
 
 app.include_router(transcription_router)
 app.include_router(qa_router)
+app.include_router(auth_router)
+
 # app.include_router(router)  # We removed the separate router, so we don't need to include it
 
 
@@ -331,3 +334,15 @@ async def global_exception_handler(request: Request, exc: Exception):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=10000, reload=True)
+
+
+@app.post("/reset-password")
+def reset_password(data: dict = Body(...)):
+    email = data.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email required")
+
+    # (You can simulate or implement email sending here)
+    print(f"Reset link sent to: {email}")
+
+    return {"message": "Reset instructions sent"}

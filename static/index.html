@@ -405,6 +405,22 @@
             document.getElementById("registerBox").style.display = "none";
         }
 
+        function resetPassword() {
+            const email = document.getElementById("resetEmail").value;
+            fetch("/reset-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email })
+            }).then(res => {
+                if (!res.ok) throw new Error("Reset failed");
+                return res.json();
+            }).then(() => {
+                showToast("Reset email sent!", "success");
+            }).catch(err => {
+                showToast("Reset error: " + err.message, "error");
+            });
+        }
+
         function showLogin() {
             document.getElementById("registerBox").style.display = "none";
             document.getElementById("loginBox").style.display = "block";
