@@ -17,6 +17,26 @@ router = APIRouter()
 
 @router.post("/login")
 def login(request: Request, response: Response, payload: LoginRequest, db: Session = Depends(get_db)):
+    try:
+        user = authenticate_user(db, payload.email, payload.password)
+        access_token = create_access_token(data={"sub": user.email})
+        refresh_token = create_refresh_token(data={"sub": user.email})
+
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=7 * 24 * 60 * 60
+        )
+
+        return {
+            "access_token": access_token,
+            "token_type": "bearer"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     # JWT configuration
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "supersecret")
