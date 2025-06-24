@@ -350,9 +350,7 @@
          */
         async function fetchWithRefresh(url, options = {}, attempt = 0) {
             const token = localStorage.getItem("accessToken");
-            // Ensure headers object exists
             options.headers = options.headers || {};
-            // Add Authorization header
             if (token) {
                 options.headers["Authorization"] = `Bearer ${token}`;
             }
@@ -364,7 +362,7 @@
                 try {
                     const refreshRes = await fetch("/refresh-token", {
                         method: "POST",
-                        credentials: "include", // Important for sending the httpOnly refresh cookie
+                        credentials: "include",
                     });
 
                     if (!refreshRes.ok) throw new Error("Could not refresh token.");
@@ -373,17 +371,47 @@
                     localStorage.setItem("accessToken", data.access_token);
                     console.log("Token refreshed successfully. Retrying original request.");
 
-                    // Retry original request with the new token
                     return fetchWithRefresh(url, options, 1);
                 } catch (e) {
                     console.error("Token refresh failed:", e.message);
                     showToast("Session expired. Please log in again.", "error");
-                    logout(); // Log out the user if refresh fails
+                    logout();
                     throw new Error("Unable to refresh token");
                 }
             }
             return res;
         }
+
+        /**
+         * Attempts to silently refresh the access token on page load using the httpOnly cookie.
+         */
+        async function tryRefreshToken() {
+            console.log("Attempting to refresh token on page load...");
+            try {
+                const refreshRes = await fetch("/refresh-token", {
+                    method: "POST",
+                    credentials: "include", // This is crucial for sending the httpOnly cookie
+                });
+
+                if (!refreshRes.ok) {
+                    // This is expected if the user is not logged in or the refresh token is invalid.
+                    console.log("No active session found via refresh token.");
+                    return; // Fail silently
+                }
+
+                const data = await refreshRes.json();
+                localStorage.setItem("accessToken", data.access_token);
+                // Assume the backend returns user info needed for the UI on successful refresh
+                if (data.user_email) localStorage.setItem("userEmail", data.user_email);
+                if (data.display_name) localStorage.setItem("displayName", data.display_name);
+                console.log("Silent refresh successful. User is logged in.");
+
+            } catch (e) {
+                // This would typically be a network error.
+                console.error("Error during silent token refresh:", e);
+            }
+        }
+
 
         // --- UI & UTILITY ---
         function showToast(message, type = "info") {
@@ -482,11 +510,6 @@
         async function loadHistory() {
             try {
                 const res = await fetchWithRefresh("/api/transcripts");
-                if (res.status === 401) { // Should be handled by fetchWithRefresh, but as a fallback
-                    showToast("Session expired. Please log in again.", "error");
-                    logout();
-                    return;
-                }
                 if (!res.ok) throw new Error("Failed to load history");
                 const data = await res.json();
                 allTranscripts = data.files || [];
@@ -542,7 +565,7 @@
 
             const deleteBtn = document.createElement("button");
             deleteBtn.innerText = "Delete";
-            deleteBtn.onclick = () => showDeleteConfirm(filename); // Changed to show modal
+            deleteBtn.onclick = () => showDeleteConfirm(filename);
 
             div.appendChild(tagInput);
             div.appendChild(tagButton);
@@ -775,7 +798,7 @@
             if (editMode) {
                 button.textContent = "Cancel Edits";
                 segments.forEach(seg => {
-                    const originalDiv = seg.cloneNode(true); // Keep original data
+                    const originalDiv = seg.cloneNode(true);
                     const text = seg.tagName === 'TEXTAREA' ? seg.value : seg.textContent;
                     const wrapper = document.createElement('div');
                     wrapper.className = 'segment-editor-wrapper';
@@ -859,12 +882,15 @@
         // --- GLOBAL LISTENERS & ONLOAD ---
 
         window.onload = async () => {
-            await tryRefreshToken();  // 🔁 Attempt silent login from cookie
+            // First, try to silently log in using the refresh token cookie.
+            await tryRefreshToken();
 
+            // Now, check if an access token exists in localStorage.
             const token = localStorage.getItem("accessToken");
             const loggedOutControls = document.getElementById("loggedOutControls");
 
             if (token) {
+                // If token exists, show the main app UI.
                 currentUser = localStorage.getItem("userEmail") || "user";
                 document.getElementById("loginBox").style.display = "none";
                 document.getElementById("appUI").style.display = "block";
@@ -880,16 +906,16 @@
                     exportBtn.style.display = "inline-block";
                     exportBtn.onclick = () => window.open('/api/admin/log/export', '_blank');
                 }
-
                 loadHistory();
             } else {
+                // If no token, show the login/register UI.
                 document.getElementById("loginBox").style.display = "block";
                 document.getElementById("appUI").style.display = "none";
                 document.getElementById("registerBox").style.display = "none";
                 if (loggedOutControls) loggedOutControls.style.display = "block";
             }
 
-            // Dark mode preference
+            // Apply dark mode preference regardless of login state.
             if (localStorage.getItem("prefDark") === "true") {
                 document.body.classList.add("dark");
             }
