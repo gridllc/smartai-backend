@@ -24,6 +24,8 @@ from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from alembic.config import Config
+from alembic import command
 from dotenv import load_dotenv
 
 # ─────────────────────────────────────────────
@@ -46,11 +48,11 @@ app.include_router(transcription_router)
 app.include_router(qa_router)
 app.include_router(auth_router)
 
-
-@app.on_event("startup")
-def init_db():
-    create_tables()
-
+@app.post("/run-migration")
+def run_migration():
+    alembic_cfg = Config("alembic.ini")
+    command.upgrade(alembic_cfg, "head")
+    return {"status": "migrated"}
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -346,3 +348,6 @@ def reset_password(data: dict = Body(...)):
     print(f"Reset link sent to: {email}")
 
     return {"message": "Reset instructions sent"}
+
+
+
