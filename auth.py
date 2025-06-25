@@ -107,23 +107,5 @@ def get_current_user(
     except JWTError:
         raise HTTPException(status_code=403, detail="Invalid or expired token")
     
-@router.post("/refresh-token")
-def refresh_token(refresh_token: str = Cookie(None)):
-    if not refresh_token:
-        raise HTTPException(status_code=401, detail="Refresh token missing")
-
-    try:
-        payload = jwt.decode(refresh_token, settings.secret_key,
-                             algorithms=[settings.algorithm])
-        email = payload.get("sub")
-        if not email:
-            raise HTTPException(
-                status_code=401, detail="Invalid refresh token")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
-
-    new_access_token = create_access_token(
-        data={"sub": email}, expires_delta=timedelta(minutes=15))
-    return {"access_token": new_access_token}
 
     # router = APIRouter() is already defined above

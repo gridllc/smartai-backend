@@ -1,4 +1,4 @@
-<html lang="en">
+<<html lang="en">
 
 <head>
     <meta charset="UTF-8" />
@@ -14,312 +14,127 @@
     <link rel="icon" sizes="512x512" href="/static/android-chrome-512x512.png">
     <link rel="manifest" href="/static/site.webmanifest">
 
-
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        body.dark {
-            background-color: #111;
-            color: #eee;
-        }
-
-        .dark input,
-        .dark button,
-        .dark textarea,
-        .dark select {
-            background-color: #222;
-            color: #fff;
-            border-color: #555;
-        }
-
-        .dark .profile-box,
-        .dark .source-block,
-        .dark #transcriptDetailPanel,
-        .dark #transcriptPreviewBox,
-        .dark .quiz-item,
-        .dark #summaryContainer,
-        .dark #quizViewPanel,
-        .dark .modal-content {
-            background-color: #333;
-            border-color: #555;
-        }
-
-        .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #555;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-left: 10px;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        #answerText {
-            white-space: pre-wrap;
-            font-size: 1rem;
-            line-height: 1.5;
-        }
-
-        .source-block {
-            margin-top: 10px;
-            padding: 10px;
-            border: 1px solid #aaa;
-            border-radius: 6px;
-            background: #f9f9f9;
-            font-size: 0.9em;
-        }
-
-        .history-item {
-            margin: 10px 0;
-            padding: 5px;
-            border-bottom: 1px solid #ccc;
-        }
-
-        /* Style for the active (currently viewed) transcript item */
-        .history-item.active {
-            background-color: #F0F8FF;
-            border-left: 4px solid #007bff;
-        }
-
-        .dark .history-item.active {
-            background-color: #2a3a4a;
-            border-left: 4px solid #007bff;
-        }
-
-
-        .history-item button {
-            margin-left: 10px;
-        }
-
-        #logout,
-        #darkToggle,
-        #profileToggle,
-        #analyticsToggle,
-        #exportLogBtn {
-            float: right;
-            margin-left: 10px;
-        }
-
-        #transcriptDetailPanel {
-            margin-top: 20px;
-            border: 1px solid #aaa;
-            padding: 15px;
-            border-radius: 8px;
-            background: #fdfdfd;
-        }
-
-        #transcriptPreviewBox {
-            margin-top: 5px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background: #f9f9f9;
-            white-space: pre-wrap;
-            max-height: 300px;
-            overflow-y: auto;
-            cursor: text;
-        }
-
-        .transcript-segment {
-            padding: 4px 2px;
-            margin-bottom: 2px;
-            cursor: pointer;
-            border-radius: 3px;
-        }
-
-        .transcript-segment:hover {
-            background-color: #e9e9e9;
-        }
-
-        .transcript-segment.active {
-            background-color: #cce5ff !important;
-            font-weight: bold;
-        }
-
-        .dark .transcript-segment:hover {
-            background-color: #444;
-        }
-
-        .dark .transcript-segment.active {
-            background-color: #004085 !important;
-            color: #fff;
-        }
-
-        .segment-editor {
-            width: 100%;
-            box-sizing: border-box;
-            margin-bottom: 5px;
-        }
-
-        #summaryContainer {
-            margin-top: 15px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background: #f5f5f5;
-        }
-
-        #quizList {
-            margin-top: 15px;
-        }
-
-        .quiz-item {
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            margin-bottom: 10px;
-        }
-
-        .quiz-item textarea {
-            width: 100%;
-            margin-bottom: 5px;
-        }
-
-        #quizViewPanel {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 2000;
-            display: none;
-            overflow-y: auto;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        #quizViewContent {
-            background: white;
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-            border-radius: 8px;
-        }
+        body.dark { background-color: #111; color: #eee; }
+        .dark input, .dark button, .dark textarea, .dark select { background-color: #222; color: #fff; border-color: #555; }
+        .dark .profile-box, .dark .source-block, .dark #transcriptDetailPanel, .dark #transcriptPreviewBox, .dark .quiz-item, .dark #summaryContainer, .dark #quizViewPanel, .dark .modal-content { background-color: #333; border-color: #555; }
+        .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #555; border-radius: 50%; animation: spin 1s linear infinite; margin-left: 10px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #answerText { white-space: pre-wrap; font-size: 1rem; line-height: 1.5; }
+        .source-block { margin-top: 10px; padding: 10px; border: 1px solid #aaa; border-radius: 6px; background: #f9f9f9; font-size: 0.9em; }
+        .history-item { margin: 10px 0; padding: 5px; border-bottom: 1px solid #ccc; }
+        .history-item.active { background-color: #F0F8FF; border-left: 4px solid #007bff; }
+        .dark .history-item.active { background-color: #2a3a4a; border-left: 4px solid #007bff; }
+        .history-item button { margin-left: 10px; }
+        #logout, #darkToggle, #profileToggle, #analyticsToggle, #exportLogBtn { float: right; margin-left: 10px; }
+        #transcriptDetailPanel { margin-top: 20px; border: 1px solid #aaa; padding: 15px; border-radius: 8px; background: #fdfdfd; }
+        #transcriptPreviewBox { margin-top: 5px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; background: #f9f9f9; white-space: pre-wrap; max-height: 300px; overflow-y: auto; cursor: text; }
+        .transcript-segment { padding: 4px 2px; margin-bottom: 2px; cursor: pointer; border-radius: 3px; }
+        .transcript-segment:hover { background-color: #e9e9e9; }
+        .transcript-segment.active { background-color: #cce5ff !important; font-weight: bold; }
+        .dark .transcript-segment:hover { background-color: #444; }
+        .dark .transcript-segment.active { background-color: #004085 !important; color: #fff; }
+        .segment-editor { width: 100%; box-sizing: border-box; margin-bottom: 5px; }
+        #summaryContainer { margin-top: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f5f5f5; }
+        #quizList { margin-top: 15px; }
+        .quiz-item { padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px; }
+        .quiz-item textarea { width: 100%; margin-bottom: 5px; }
+        #quizViewPanel { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 2000; display: none; overflow-y: auto; padding: 20px; box-sizing: border-box; }
+        #quizViewContent { background: white; max-width: 800px; margin: 20px auto; padding: 20px; border-radius: 8px; }
     </style>
 </head>
 
 <body>
-    <!-- Main App UI (merged into one container) -->
     <div id="appUI" style="display: none;">
-        <button id="logout" onclick="logout()">Logout</button>
-        <button id="profileToggle" onclick="toggleProfile()">Profile</button>
-        <button id="darkToggle" onclick="toggleDarkMode()">Dark Mode</button>
-        <button id="analyticsToggle" style="display: none;" onclick="toggleAnalytics()">Analytics</button>
+        <button id="logout">Logout</button>
+        <button id="profileToggle">Profile</button>
+        <button id="darkToggle">Dark Mode</button>
+        <button id="analyticsToggle" style="display: none;">Analytics</button>
         <button id="exportLogBtn" style="display: none;">Export Log</button>
-
         <h1 id="welcomeHeader">SmartAI Audio Transcriber</h1>
         <input type="file" id="fileInput" />
         <button id="uploadBtn">Upload & Transcribe</button>
-
-        <!-- Search and Filter Controls -->
         <div style="margin: 15px 0;">
-            <input type="text" id="searchInput" placeholder="Search by filename..." onkeyup="filterTranscripts()">
-            <input type="text" id="tagSearchInput" placeholder="Filter by tag..." onkeyup="filterTranscripts()">
-            <select id="sortSelect" onchange="filterTranscripts()">
+            <input type="text" id="searchInput" placeholder="Search by filename...">
+            <input type="text" id="tagSearchInput" placeholder="Filter by tag...">
+            <select id="sortSelect">
                 <option value="newest">Sort by Newest</option>
                 <option value="oldest">Sort by Oldest</option>
             </select>
         </div>
-
         <div id="transcriptHistory"></div>
         <hr>
         <h2>Ask a Question</h2>
         <input type="text" id="questionInput" placeholder="Ask a question..." />
-        <button onclick="askQuestion()">Ask</button>
+        <button id="askQuestionBtn">Ask</button>
         <div id="spinner" class="spinner" style="display: none;"></div>
         <div id="answerBox">
             <div id="answerText"></div>
             <div id="sourcesBox"></div>
         </div>
-
-        <!-- Transcript Detail Panel -->
         <div id="transcriptDetailPanel" style="display: none;">
-            <button onclick="closeTranscriptDetail()" style="float: right;">× Close</button>
+            <button id="closeTranscriptDetailBtn" style="float: right;">× Close</button>
             <h3 id="transcriptDetailFilename" style="margin-top:0;"></h3>
-
             <div id="detailControls" style="margin-bottom: 10px;">
-                <button onclick="toggleEditSegments(this)">Edit Segments</button>
-                <button onclick="toggleSummary()">Toggle Summary</button>
-                <button onclick="generateFullQuiz()">Generate Full Quiz</button>
-                <button onclick="toggleQuizPanel()">View Saved Quiz</button>
-                <button onclick="exportTranscriptAsPDF()">Export to PDF</button>
-                <button onclick="saveAllEdits()" style="font-weight: bold; margin-left: 20px;">💾 Save All
-                    Changes</button>
+                <button id="toggleEditSegmentsBtn">Edit Segments</button>
+                <button id="toggleSummaryBtn">Toggle Summary</button>
+                <button id="generateFullQuizBtn">Generate Full Quiz</button>
+                <button id="toggleQuizPanelBtn">View Saved Quiz</button>
+                <button id="exportTranscriptAsPDFBtn">Export to PDF</button>
+                <button id="saveAllEditsBtn" style="font-weight: bold; margin-left: 20px;">💾 Save All Changes</button>
             </div>
-
             <audio id="audioPlayer" controls style="width: 100%; margin-top: 10px; display: none;"></audio>
-
             <h4>Transcript Content</h4>
             <div id="transcriptPreviewBox"></div>
-
             <div id="summaryContainer" style="display: none;">
                 <h4>Summary</h4>
                 <div id="summaryContent"><em>Loading summary...</em></div>
             </div>
-
             <div id="noteBox" style="margin-top: 20px;">
                 <h4>Transcript Note</h4>
                 <textarea id="noteInput" rows="4" style="width:100%;" placeholder="Add a note..."></textarea>
-                <button onclick="saveNote()">Save Note</button>
+                <button id="saveNoteBtn">Save Note</button>
                 <small id="lastSavedTime" style="color:gray; margin-left: 10px;"></small>
             </div>
-
             <div id="quizList" style="margin-top: 20px; display:none;">
                 <h4>Saved Quiz Questions</h4>
                 <div id="quizContent"><em>Loading quiz...</em></div>
             </div>
         </div>
     </div>
-
-    <!-- Quiz View Panel (Modal) -->
     <div id="quizViewPanel" class="modal">
         <div id="quizViewContent" class="modal-content">
-            <button onclick="toggleQuizPanel()" style="float:right;">× Close</button>
+            <button id="closeQuizPanelBtn" style="float:right;">× Close</button>
             <h3 id="quizViewFilename">Quiz</h3>
             <div id="quizViewList"></div>
         </div>
     </div>
-
-    <!-- Delete Confirmation Modal -->
-    <div id="confirmDeleteModal" class="modal"
-        style="display:none; position:fixed; top:40%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px; border-radius:8px; z-index:1000; border: 1px solid #ccc;">
+    <div id="confirmDeleteModal" class="modal" style="display:none; position:fixed; top:40%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:20px; border-radius:8px; z-index:1000; border: 1px solid #ccc;">
         <div class="modal-content">
             <p>Are you sure you want to delete this transcript?</p>
-            <button onclick="confirmDelete()">Yes, Delete</button>
-            <button onclick="closeDeleteModal()">Cancel</button>
+            <button id="confirmDeleteBtn">Yes, Delete</button>
+            <button id="cancelDeleteBtn">Cancel</button>
         </div>
     </div>
-
-    <!-- Placeholder elements -->
-    <div class="profile-overlay" id="profileOverlay" onclick="toggleProfile()"></div>
+    <div class="profile-overlay" id="profileOverlay"></div>
     <div class="profile-box" id="profileBox">...</div>
     <div id="loginBox" style="display: none;">
         <h3>Login</h3>
         <input type="email" id="loginEmail" placeholder="Email" /><br><br>
         <input type="password" id="loginPassword" placeholder="Password" /><br><br>
-        <button onclick="login()">Login</button>
-        <p>Forgot password? <a href="#" onclick="showReset()">Reset</a></p>
-        <p>Don’t have an account? <a href="#" onclick="showRegister()">Register</a></p>
+        <button id="loginBtn">Login</button>
+        <p>Forgot password? <a href="#" id="showResetLink">Reset</a></p>
+        <p>Don’t have an account? <a href="#" id="showRegisterLink">Register</a></p>
     </div>
     <div id="resetBox" style="display: none;">
         <h3>Reset Password</h3>
         <input type="email" id="resetEmail" placeholder="Email" /><br><br>
-        <button onclick="resetPassword()">Send Reset Email</button>
-        <p><a href="#" onclick="showLogin()">Back to Login</a></p>
+        <button id="resetPasswordBtn">Send Reset Email</button>
+        <p><a href="#" id="backToLoginFromReset">Back to Login</a></p>
     </div>
     <div id="registerBox" style="display:none;">
         <h3>Register</h3>
@@ -327,680 +142,9 @@
         <input type="email" id="registerEmail" placeholder="Email" /><br><br>
         <input type="password" id="registerPassword" placeholder="Password" /><br><br>
         <input type="text" id="registerCode" placeholder="Invite Code (if required)" /><br><br>
-        <button onclick="register()">Create Account</button>
-        <p><a href="#" onclick="showLogin()">Back to Login</a></p>
+        <button id="registerBtn">Create Account</button>
+        <p><a href="#" id="backToLoginFromRegister">Back to Login</a></p>
     </div>
-
-    <div id="spinner" style="display:none;" class="spinner"></div>
-
-    <script>
-        // --- GLOBAL STATE ---
-        let currentUser = null;
-        let allTranscripts = [];
-        let editMode = false;
-        let audioHighlightInterval = null;
-        let pendingDeleteFilename = null;
-
-        // --- AUTH & FETCH WRAPPER ---
-
-        /**
-         * A wrapper for the fetch API that automatically handles JWT token refresh.
-         * If a 401 Unauthorized is received, it attempts to refresh the token and retries the request once.
-         * @param {string} url The URL to fetch.
-         * @param {object} options The options for the fetch request.
-         * @param {number} attempt The attempt number (internal use for preventing infinite loops).
-         * @returns {Promise<Response>} The fetch response.
-         */
-        async function fetchWithRefresh(url, options = {}, attempt = 0) {
-            const token = localStorage.getItem("accessToken");
-            options.headers = options.headers || {};
-            if (token) {
-                options.headers["Authorization"] = `Bearer ${token}`;
-            }
-
-            const res = await fetch(url, options);
-
-            if (res.status === 401 && attempt === 0) {
-                console.log("Access token expired. Attempting to refresh...");
-                try {
-                    const refreshRes = await fetch("/refresh-token", {
-                        method: "POST",
-                        credentials: "include",
-                    });
-
-                    if (!refreshRes.ok) throw new Error("Could not refresh token.");
-
-                    const data = await refreshRes.json();
-                    localStorage.setItem("accessToken", data.access_token);
-                    console.log("Token refreshed successfully. Retrying original request.");
-
-                    return fetchWithRefresh(url, options, 1);
-                } catch (e) {
-                    console.error("Token refresh failed:", e.message);
-                    showToast("Session expired. Please log in again.", "error");
-                    logout();
-                    throw new Error("Unable to refresh token");
-                }
-            }
-            return res;
-        }
-
-        /**
-         * Attempts to silently refresh the access token on page load using the httpOnly cookie.
-         */
-        async function tryRefreshToken() {
-            console.log("Attempting to refresh token on page load...");
-            try {
-                const refreshRes = await fetch("/auth/refresh-token", { // <--- CORRECTED PATH
-                    method: "POST",
-                    credentials: "include",
-                    headers: {
-                        "Content-Type": "application/json"
-                    }
-                });
-
-                if (!refreshRes.ok) {
-                    console.log("No active session found via refresh token.");
-                    return false;
-                }
-
-                const data = await refreshRes.json();
-                localStorage.setItem("accessToken", data.access_token);
-                if (data.user_email) localStorage.setItem("userEmail", data.user_email);
-                if (data.display_name) localStorage.setItem("displayName", data.display_name);
-
-                console.log("Silent refresh successful. User is logged in.");
-                return true;
-            } catch (e) {
-                console.error("Error during silent token refresh:", e);
-                return false;
-            }
-        }
-
-
-        // --- UI & UTILITY ---
-        function showToast(message, type = "info") {
-            let bg = { success: "#4CAF50", error: "#f44336", info: "#2196F3" }[type] || "#333";
-            Toastify({ text: message, duration: 3000, gravity: "top", position: "right", style: { background: bg } }).showToast();
-        }
-
-        function toggleProfile() {
-            const profileBox = document.getElementById("profileBox");
-            const overlay = document.getElementById("profileOverlay");
-            const isVisible = profileBox.style.display === "block";
-            profileBox.style.display = isVisible ? "none" : "block";
-            if (overlay) overlay.style.display = isVisible ? "none" : "block";
-        }
-
-        // --- AUTH & USER ---
-        function login() {
-            const email = document.getElementById("loginEmail").value;
-            const password = document.getElementById("loginPassword").value;
-
-            if (!email || !password) {
-                showToast("Please enter both email and password", "error");
-                return;
-            }
-
-            fetch("/auth/login", { // <--- CORRECTED PATH
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
-                },
-                credentials: "include", // crucial for refresh cookie
-                body: JSON.stringify({ email, password })
-            })
-                .then(res => {
-                    if (!res.ok) {
-                        return res.json().then(err => {
-                            throw new Error(err.detail || "Login failed");
-                        });
-                    }
-                    return res.json();
-                })
-                .then(data => {
-                    localStorage.setItem("accessToken", data.access_token);
-                    localStorage.setItem("userEmail", data.user_email || email);
-                    localStorage.setItem("displayName", data.display_name || email.split("@")[0]);
-                    showToast("Login successful", "success");
-                    window.onload(); // re-run init logic (or window.location.reload() if needed)
-                })
-                .catch(err => {
-                    console.error("Login error:", err);
-                    showToast("Login error: " + err.message, "error");
-                });
-        }
-
-
-        function register() {
-            const name = document.getElementById("registerName").value;
-            const email = document.getElementById("registerEmail").value;
-            const password = document.getElementById("registerPassword").value;
-            const invite_code = document.getElementById("registerCode")?.value || "";
-
-            if (!email || !password) {
-                showToast("Please enter both email and password", "error");
-                return;
-            }
-
-            fetch("/auth/register", { // <--- CORRECTED PATH
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
-                },
-                body: JSON.stringify({ name, email, password })
-            })
-                .then(res => {
-                    if (!res.ok) {
-                        return res.json().then(err => {
-                            throw new Error(err.detail || "Registration failed");
-                        });
-                    }
-                    return res.json();
-                })
-                .then(() => {
-                    showToast("Account created! Please login.", "success");
-                    showLogin();
-                })
-                .catch(err => {
-                    console.error("Registration error:", err);
-                    showToast("Registration error: " + err.message, "error");
-                });
-        }
-
-        function logout() {
-            // Clear LocalStorage
-            localStorage.clear();
-
-            // Call Logout endpoint to clear cookies
-            fetch("/auth/logout", {
-                method: "POST",
-                credentials: "include"
-            })
-                .then(() => {
-                    window.location.reload();
-                })
-                .catch(() => {
-                    // Even if logout endpoint fails, still reload
-                    window.location.reload();
-                });
-        }
-
-        function showRegister() {
-            document.getElementById("loginBox").style.display = "none";
-            document.getElementById("registerBox").style.display = "block";
-            document.getElementById("resetBox").style.display = "none";
-        }
-
-        function showReset() {
-            document.getElementById("loginBox").style.display = "none";
-            document.getElementById("resetBox").style.display = "block";
-            document.getElementById("registerBox").style.display = "none";
-        }
-
-        function resetPassword() {
-            const email = document.getElementById("resetEmail").value;
-            fetch("/reset-password", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email })
-            }).then(res => {
-                if (!res.ok) throw new Error("Reset failed");
-                return res.json();
-            }).then(() => {
-                showToast("Reset email sent!", "success");
-            }).catch(err => {
-                showToast("Reset error: " + err.message, "error");
-            });
-        }
-
-        function showLogin() {
-            document.getElementById("registerBox").style.display = "none";
-            document.getElementById("loginBox").style.display = "block";
-            document.getElementById("resetBox").style.display = "none";
-        }
-
-        // --- CORE APP: UPLOAD, HISTORY, ASK ---
-
-        async function loadHistory() {
-            try {
-                const res = await fetchWithRefresh("/api/transcripts");
-                if (!res.ok) throw new Error("Failed to load history");
-                const data = await res.json();
-                allTranscripts = data.files || [];
-                filterTranscripts();
-            } catch (err) {
-                showToast("Error loading history: " + err.message, "error");
-            }
-        }
-
-        function filterTranscripts() {
-            const query = document.getElementById("searchInput").value.toLowerCase();
-            const tagQuery = document.getElementById("tagSearchInput").value.toLowerCase();
-            const sortBy = document.getElementById("sortSelect").value;
-
-            let filtered = allTranscripts.filter(item => {
-                const name = (typeof item === 'string' ? item : item.filename).toLowerCase();
-                const tag = (typeof item === 'object' && item.tag) ? item.tag.toLowerCase() : "";
-                return name.includes(query) && (!tagQuery || tag.includes(tagQuery));
-            });
-
-            if (sortBy === "oldest") filtered.reverse();
-
-            const historyDiv = document.getElementById("transcriptHistory");
-            historyDiv.innerHTML = "<h3>Transcript History</h3>";
-            if (filtered.length === 0) {
-                historyDiv.innerHTML += "<p>No matching transcripts found.</p>";
-            } else {
-                filtered.forEach(item => renderTranscriptItem(item, historyDiv));
-            }
-        }
-
-        function renderTranscriptItem(item, container) {
-            const filename = typeof item === 'string' ? item : item.filename;
-            const tag = typeof item === 'object' ? item.tag : null;
-            const div = document.createElement("div");
-            div.className = "history-item";
-            div.id = `history-item-${filename.replace(/[^a-zA-Z0-9]/g, '-')}`;
-            div.innerHTML = `<span>📄 ${filename}</span>`;
-
-            const tagInput = document.createElement("input");
-            tagInput.type = "text";
-            tagInput.placeholder = "Add tag...";
-            tagInput.value = tag || "";
-            tagInput.onkeypress = (e) => { if (e.key === 'Enter') updateTag(filename, tagInput.value); };
-
-            const tagButton = document.createElement("button");
-            tagButton.innerText = "Tag";
-            tagButton.onclick = () => updateTag(filename, tagInput.value);
-
-            const detailsBtn = document.createElement("button");
-            detailsBtn.innerText = "View Details";
-            detailsBtn.onclick = () => loadTranscriptForDetailView(filename);
-
-            const deleteBtn = document.createElement("button");
-            deleteBtn.innerText = "Delete";
-            deleteBtn.onclick = () => showDeleteConfirm(filename);
-
-            div.appendChild(tagInput);
-            div.appendChild(tagButton);
-            div.appendChild(detailsBtn);
-            div.appendChild(deleteBtn);
-            container.appendChild(div);
-        }
-
-        async function updateTag(filename, tag) {
-            try {
-                const res = await fetchWithRefresh(`/api/transcript/${filename}/tag`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ tag })
-                });
-                if (!res.ok) throw new Error("Failed to update tag");
-                showToast("Tag saved!", "success");
-                loadHistory();
-            } catch (err) {
-                showToast("Error updating tag: " + err.message, "error");
-            }
-        }
-
-        async function askQuestion() {
-
-            const questionInput = document.getElementById("questionInput");
-            const question = questionInput.value.trim();
-            if (!question) return showToast("Please enter a question.", "error");
-            const answerText = document.getElementById("answerText");
-            const sourcesBox = document.getElementById("sourcesBox");
-            answerText.textContent = "";
-            sourcesBox.innerHTML = "";
-            const spinner = document.getElementById("spinner");
-            spinner.style.display = "inline-block";
-
-            try {
-                const response = await fetchWithRefresh("/ask", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ question })
-                });
-
-                if (!response.ok || !response.body) {
-                    const errData = await response.json();
-                    throw new Error(errData.detail || "Failed to get response from server.");
-                }
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    const chunk = decoder.decode(value, { stream: true });
-                    for (const line of chunk.split("\n\n")) {
-                        if (!line.startsWith("data:")) continue;
-                        try {
-                            const payload = JSON.parse(line.slice(5));
-                            if (payload.type === "token") {
-                                answerText.textContent += payload.data;
-                            } else if (payload.type === "sources") {
-                                payload.data.forEach(source => {
-                                    const block = document.createElement("div");
-                                    block.className = "source-block";
-                                    block.innerHTML = `<strong>Source:</strong> ${source.source || "Unknown"}<div class='source-text'>${source.text}</div>`;
-                                    sourcesBox.appendChild(block);
-                                });
-                            }
-                        } catch (e) { console.error("Error parsing stream chunk:", line); }
-                    }
-                }
-            } catch (err) {
-                showToast("Error asking question: " + err.message, "error");
-            } finally {
-                spinner.style.display = "none";
-                questionInput.value = "";
-            }
-        }
-
-        // --- DELETE CONFIRMATION ---
-        function showDeleteConfirm(filename) {
-            pendingDeleteFilename = filename;
-            document.getElementById('confirmDeleteModal').style.display = 'block';
-        }
-
-        function closeDeleteModal() {
-            document.getElementById('confirmDeleteModal').style.display = 'none';
-            pendingDeleteFilename = null;
-        }
-
-        async function confirmDelete() {
-            if (!pendingDeleteFilename) return;
-            await deleteTranscript(pendingDeleteFilename);
-            closeDeleteModal();
-        }
-
-        async function deleteTranscript(filename) {
-            try {
-                const res = await fetchWithRefresh(`/api/delete/${filename}`, {
-                    method: "DELETE"
-                });
-                if (!res.ok) throw new Error("Delete failed");
-                loadHistory();
-                showToast(`${filename} deleted.`, "info");
-                closeTranscriptDetail();
-            } catch (err) {
-                showToast("Delete error: " + err.message, "error");
-            }
-        }
-
-        // --- TRANSCRIPT DETAIL VIEW ---
-        async function loadTranscriptForDetailView(filename) {
-            document.querySelectorAll('.history-item.active').forEach(el => el.classList.remove('active'));
-            const itemDiv = document.getElementById(`history-item-${filename.replace(/[^a-zA-Z0-9]/g, '-')}`);
-            if (itemDiv) itemDiv.classList.add("active");
-
-            closeTranscriptDetail();
-            editMode = false;
-
-            const panel = document.getElementById("transcriptDetailPanel");
-            panel.style.display = "block";
-            document.getElementById("transcriptDetailFilename").innerText = filename;
-            const previewBox = document.getElementById("transcriptPreviewBox");
-            const noteTextarea = document.getElementById("noteInput");
-            const audioPlayer = document.getElementById("audioPlayer");
-
-            previewBox.innerHTML = "<em>Loading transcript...</em>";
-            noteTextarea.value = "";
-            noteTextarea.dataset.filename = filename;
-            audioPlayer.style.display = 'none';
-            document.getElementById("lastSavedTime").innerText = "";
-
-            try {
-                const [transcriptRes, noteRes, audioRes] = await Promise.all([
-                    fetchWithRefresh(`/api/transcript/${filename}`),
-                    fetchWithRefresh(`/api/transcript/${filename}/note`),
-                    fetchWithRefresh(`/audio/${filename}`)
-                ]);
-
-                if (!transcriptRes.ok) throw new Error("Transcript load failed");
-                const transcriptData = await transcriptRes.json();
-                previewBox.innerHTML = "";
-                if (transcriptData.segments && transcriptData.segments.length) {
-                    transcriptData.segments.forEach(seg => {
-                        const div = document.createElement("div");
-                        div.className = "transcript-segment";
-                        div.textContent = seg.text;
-                        div.dataset.start = seg.start;
-                        div.dataset.end = seg.end;
-                        div.onclick = () => playSegmentFrom(seg.start);
-                        previewBox.appendChild(div);
-                    });
-                } else {
-                    previewBox.innerText = transcriptData.transcript || "[Empty]";
-                }
-
-                if (audioRes.ok) {
-                    const audioBlob = await audioRes.blob();
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    audioPlayer.src = audioUrl;
-                    audioPlayer.style.display = 'block';
-                    audioPlayer.onplay = startSegmentHighlighter;
-                    audioPlayer.onpause = stopSegmentHighlighter;
-                    audioPlayer.onended = stopSegmentHighlighter;
-                }
-
-                const noteData = noteRes.ok ? await noteRes.json() : { note: "" };
-                noteTextarea.value = noteData.note || "";
-
-            } catch (err) {
-                showToast("Error loading details: " + err.message, "error");
-                previewBox.innerHTML = `<p style="color:red;">Failed to load details.</p>`;
-            }
-        }
-
-        function closeTranscriptDetail() {
-            document.getElementById("transcriptDetailPanel").style.display = "none";
-            document.getElementById("summaryContainer").style.display = "none";
-            document.getElementById("quizList").style.display = "none";
-            const audioPlayer = document.getElementById("audioPlayer");
-            if (audioPlayer) {
-                audioPlayer.pause();
-                audioPlayer.src = '';
-            }
-            stopSegmentHighlighter();
-        }
-
-        // --- AUDIO & HIGHLIGHTING ---
-        function playSegmentFrom(startTime) {
-            const audioPlayer = document.getElementById("audioPlayer");
-            audioPlayer.currentTime = startTime;
-            audioPlayer.play();
-        }
-
-        function startSegmentHighlighter() {
-            if (audioHighlightInterval) clearInterval(audioHighlightInterval);
-            audioHighlightInterval = setInterval(highlightActiveSegment, 300);
-        }
-
-        function stopSegmentHighlighter() {
-            if (audioHighlightInterval) clearInterval(audioHighlightInterval);
-            audioHighlightInterval = null;
-            document.querySelectorAll('.transcript-segment.active').forEach(el => el.classList.remove('active'));
-        }
-
-        function highlightActiveSegment() {
-            const audioPlayer = document.getElementById("audioPlayer");
-            const currentTime = audioPlayer.currentTime;
-            const segments = document.querySelectorAll('#transcriptPreviewBox .transcript-segment');
-
-            let activeSegment = null;
-            segments.forEach(seg => {
-                const start = parseFloat(seg.dataset.start);
-                const end = parseFloat(seg.dataset.end);
-                seg.classList.remove('active');
-                if (currentTime >= start && currentTime <= end) {
-                    activeSegment = seg;
-                }
-            });
-            if (activeSegment) {
-                activeSegment.classList.add('active');
-            }
-        }
-
-        // --- SEGMENT/NOTE EDITING ---
-        function toggleEditSegments(button) {
-            editMode = !editMode;
-            const previewBox = document.getElementById("transcriptPreviewBox");
-            const segments = previewBox.querySelectorAll('.transcript-segment, .segment-editor-wrapper');
-
-            if (editMode) {
-                button.textContent = "Cancel Edits";
-                segments.forEach(seg => {
-                    const originalDiv = seg.cloneNode(true);
-                    const text = seg.tagName === 'TEXTAREA' ? seg.value : seg.textContent;
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'segment-editor-wrapper';
-                    const textarea = document.createElement('textarea');
-                    textarea.className = 'segment-editor';
-                    textarea.value = text;
-                    textarea.rows = 3;
-                    wrapper.appendChild(textarea);
-                    seg.replaceWith(wrapper);
-                });
-            } else {
-                button.textContent = "Edit Segments";
-                loadTranscriptForDetailView(document.getElementById("noteInput").dataset.filename);
-            }
-        }
-
-        async function saveEditedSegments() {
-            const filename = document.getElementById("noteInput").dataset.filename;
-            const textareas = document.querySelectorAll('#transcriptPreviewBox .segment-editor');
-            const originalSegments = Array.from(document.querySelectorAll('#transcriptPreviewBox .transcript-segment'));
-
-            const updatedSegments = Array.from(textareas).map((textarea, index) => ({
-                text: textarea.value,
-                start: parseFloat(originalSegments[index].dataset.start),
-                end: parseFloat(originalSegments[index].dataset.end)
-            }));
-
-            try {
-                const res = await fetchWithRefresh(`/api/transcript/${filename}/segments`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ segments: updatedSegments })
-                });
-                if (!res.ok) throw new Error("Failed to save segments");
-                document.getElementById("lastSavedTime").innerText = `Last saved: ${new Date().toLocaleTimeString()}`;
-            } catch (err) {
-                showToast("Error saving segments: " + err.message, "error");
-                throw err;
-            }
-        }
-
-        async function saveNote() {
-            const textarea = document.getElementById("noteInput");
-            const note = textarea.value;
-            const filename = textarea.dataset.filename;
-            if (!filename) return;
-
-            try {
-                const res = await fetchWithRefresh(`/api/transcript/${filename}/note`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ note })
-                });
-                if (!res.ok) throw new Error("Note save failed");
-                document.getElementById("lastSavedTime").innerText = `Last saved: ${new Date().toLocaleTimeString()}`;
-            } catch (err) {
-                showToast("Note save error: " + err.message, "error");
-                throw err;
-            }
-        }
-
-        async function saveAllEdits() {
-            try {
-                await Promise.all([saveEditedSegments(), saveNote()]);
-                showToast("All changes saved!", "success");
-                await loadTranscriptForDetailView(document.getElementById("noteInput").dataset.filename);
-            } catch (err) {
-                showToast("An error occurred during save.", "error");
-            }
-        }
-
-        // --- SUMMARY, QUIZ, EXPORT ---
-        async function toggleSummary() { /* Unchanged */ }
-        async function generateFullQuiz() { /* Unchanged */ }
-        async function toggleQuizPanel() { /* Unchanged */ }
-        async function loadSavedQuiz(filename, container) { /* Unchanged */ }
-        async function updateQuizQuestion(filename, timestamp) { /* Unchanged */ }
-        async function deleteQuizQuestion(filename, timestamp) { /* Unchanged */ }
-        async function exportTranscriptAsPDF() { /* Unchanged */ }
-
-        // --- GLOBAL LISTENERS & ONLOAD ---
-
-        window.onload = async () => {
-            // First, try to silently log in using the refresh token cookie.
-            const refreshSuccess = await tryRefreshToken();
-
-            // Now, check if an access token exists in LocalStorage.
-            const token = localStorage.getItem("accessToken");
-            const loggedOutControls = document.getElementById("loggedOutControls");
-
-            if (token || refreshSuccess) {
-                // Show main app UI
-                const currentUser = localStorage.getItem("userEmail") || "user";
-                document.getElementById("loginBox").style.display = "none";
-                document.getElementById("appUI").style.display = "block";
-                if (loggedOutControls) loggedOutControls.style.display = "none";
-
-                const displayName = localStorage.getItem("displayName");
-                document.getElementById("welcomeHeader").innerText =
-                    `Welcome, ${displayName || currentUser}`;
-
-                // Admin-specific UI
-                if (currentUser === "patrick@gridllc.net") {
-                    document.getElementById("analyticsToggle").style.display = "inline-block";
-                    const exportBtn = document.getElementById("exportLogBtn");
-                    exportBtn.style.display = "inline-block";
-                    exportBtn.onclick = () => window.open('/api/admin/log/export', '_blank');
-                }
-
-                loadHistory();
-
-            } else {
-                // Show login/register UI
-                document.getElementById("loginBox").style.display = "block";
-                document.getElementById("appUI").style.display = "none";
-                document.getElementById("registerBox").style.display = "none";
-                if (loggedOutControls) loggedOutControls.style.display = "block";
-            }
-
-            // Apply dark mode regardless of login state.
-            if (localStorage.getItem("prefDark") === "true") {
-                document.body.classList.add("dark");
-            }
-        };
-
-        function toggleDarkMode() {
-            document.body.classList.toggle("dark");
-            localStorage.setItem("prefDark", document.body.classList.contains("dark"));
-        }
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === "Escape") {
-                document.querySelectorAll('.modal, .overlay').forEach(el => {
-                    if (el.style.display !== 'none') {
-                        el.style.display = 'none';
-                    }
-                });
-            }
-            if (e.ctrlKey && e.key.toLowerCase() === 'd') {
-                e.preventDefault();
-                toggleDarkMode();
-            }
-        });
-    </script>
     <script src="/static/static_main.js"></script>
 </body>
-
 </html>
