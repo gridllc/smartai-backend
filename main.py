@@ -239,6 +239,7 @@ async def upload_file(
         )
         db.add(new_file)
         db.commit()
+        db.refresh(new_file)  # optional, but safe
 
         return {"message": "File uploaded and transcribed", "filename": unique_name}
 

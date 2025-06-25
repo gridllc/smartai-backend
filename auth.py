@@ -1,6 +1,7 @@
 import os
 from fastapi import Depends, HTTPException, Header, Cookie
 from fastapi.security import HTTPBearer
+from fastapi import APIRouter, Body
 from schemas import LoginRequest, RegisterRequest
 from datetime import datetime, timedelta
 from typing import Optional
@@ -13,6 +14,8 @@ from database import get_db
 from config import settings
 
 load_dotenv()
+
+router = APIRouter()
 
 # ───────────── Configs ─────────────
 SECRET_KEY = settings.jwt_secret_key
@@ -44,7 +47,6 @@ def create_refresh_token(data: dict) -> str:
     to_encode = data.copy()
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
 
 def decode_refresh_token(token: str):
     try:
@@ -104,3 +106,24 @@ def get_current_user(
         return user
     except JWTError:
         raise HTTPException(status_code=403, detail="Invalid or expired token")
+    
+@router.post("/refresh-token")
+def refresh_token(refresh_token: str = Cookie(None)):
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token missing")
+
+    try:
+        payload = jwt.decode(refresh_token, settings.secret_key,
+                             algorithms=[settings.algorithm])
+        email = payload.get("sub")
+        if not email:
+            raise HTTPException(
+                status_code=401, detail="Invalid refresh token")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    new_access_token = create_access_token(
+        data={"sub": email}, expires_delta=timedelta(minutes=15))
+    return {"access_token": new_access_token}
+
+    # router = APIRouter() is already defined above
