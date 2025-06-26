@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from openai import OpenAI
+from typing import Dict, List, Any
 
 # Local
 from upload_processor import transcribe_audio
