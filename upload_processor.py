@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from pinecone import Pinecone
 from openai import OpenAI
 import whisper
+from s3_utils import upload_to_s3
 
 load_dotenv()
 
@@ -14,7 +15,6 @@ index = pc.Index("smartai-transcripts")
 
 EMBED_MODEL = "text-embedding-3-small"
 CHUNK_SIZE = 500  # characters per chunk
-
 
 def chunk_text(text, chunk_size=CHUNK_SIZE):
     chunks = []
@@ -94,7 +94,7 @@ if __name__ == "__main__":
             process_file(os.path.join(transcript_dir, file))
 
 
-async def transcribe_audio(file_path: str, filename: str) -> tuple[str, list[dict]]:
+async def transcribe_audio(file_path: str, filename: str) -> tuple[str, list[dict], str, str]:
     print(f"\U0001F3A7 Transcribing audio from {file_path}")
 
     if not os.path.exists(file_path):
@@ -108,6 +108,17 @@ async def transcribe_audio(file_path: str, filename: str) -> tuple[str, list[dic
     full_text = result.get("text", "")
     segments = result.get("segments", [])
 
+    # Save transcript locally
+    transcript_filename = f"{os.path.splitext(filename)[0]}.txt"
+    transcript_path = os.path.join("transcripts", transcript_filename)
+    with open(transcript_path, "w", encoding="utf-8") as f:
+        f.write(full_text)
+
+    # Upload to S3
+    audio_s3_url = upload_to_s3(file_path, f"uploads/{filename}")
+    transcript_s3_url = upload_to_s3(
+        transcript_path, f"transcripts/{transcript_filename}")
+
     formatted_segments = [
         {
             "start": round(seg["start"], 2),
@@ -117,4 +128,6 @@ async def transcribe_audio(file_path: str, filename: str) -> tuple[str, list[dic
         for seg in segments
     ]
 
-    return full_text, formatted_segments
+    return full_text, formatted_segments, audio_s3_url, transcript_s3_url
+
+
