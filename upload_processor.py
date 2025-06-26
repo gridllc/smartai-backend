@@ -94,7 +94,9 @@ if __name__ == "__main__":
             process_file(os.path.join(transcript_dir, file))
 
 
+# Correct the type hint to show it returns 5 string/list/string/string/string values
 async def transcribe_audio(file_path: str, filename: str) -> tuple[str, list[dict], str, str, str]:
+    # --------------------------------------------------------
     print(f"\U0001F3A7 Transcribing audio from {file_path}")
 
     if not os.path.exists(file_path):
@@ -135,8 +137,10 @@ async def transcribe_audio(file_path: str, filename: str) -> tuple[str, list[dic
     audio_s3_url = upload_to_s3(file_path, f"uploads/{filename}")
     transcript_s3_url = upload_to_s3(
         transcript_path, f"transcripts/{transcript_filename}")
-    # Upload the segments file to S3
+
+    # This line ensures the segments file is also uploaded
     upload_to_s3(segments_path, f"transcripts/{segments_filename}")
 
+    # This return statement is already correct (returns 5 values)
     return full_text, formatted_segments, audio_s3_url, transcript_s3_url, transcript_path
 

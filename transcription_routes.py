@@ -58,11 +58,14 @@ async def upload_file(
             content = await file.read()
             await out_file.write(content)
 
-        # Transcribe and upload to S3 (Correctly unpack 5 return values)
+        # ------------------- THIS IS THE FIX -------------------
+        # Unpack all 5 values returned by transcribe_audio.
+        # We use `_` to ignore the last value (local transcript_path), which isn't needed here.
         transcript_text, segments, audio_url, transcript_url, _ = await transcribe_audio(upload_path, unique_name)
+        # --------------------------------------------------------
 
         # The segments JSON is now created and uploaded by transcribe_audio,
-        # so we can remove the redundant code that was here.
+        # so the redundant code that was here can be removed.
 
         # Save metadata to DB
         new_file = UserFile(
