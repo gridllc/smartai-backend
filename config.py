@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     # OpenAI
     openai_api_key: str = Field(..., env="OPENAI_API_KEY")
 
+    # AWS S3 configuration
+    aws_access_key_id: str = Field(..., env="AWS_ACCESS_KEY_ID")
+    aws_secret_access_key: str = Field(..., env="AWS_SECRET_ACCESS_KEY")
+    aws_region: str = Field(default="us-west-1", env="AWS_REGION")
+    s3_bucket: str = Field(default="smartai-transcripts-pg", env="S3_BUCKET")
+
     # JWT secret key
     jwt_secret_key: str = Field(..., env="JWT_SECRET_KEY")
 
