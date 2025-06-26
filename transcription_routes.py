@@ -58,13 +58,11 @@ async def upload_file(
             content = await file.read()
             await out_file.write(content)
 
-        # Transcribe and upload to S3
-        transcript_text, segments, audio_url, transcript_url = await transcribe_audio(upload_path, unique_name)
+        # Transcribe and upload to S3 (Correctly unpack 5 return values)
+        transcript_text, segments, audio_url, transcript_url, _ = await transcribe_audio(upload_path, unique_name)
 
-        # Save segments JSON
-        segments_path = os.path.join("transcripts", f"{unique_name}.json")
-        async with aiofiles.open(segments_path, "w", encoding="utf-8") as f:
-            await f.write(json.dumps(segments, indent=2))
+        # The segments JSON is now created and uploaded by transcribe_audio,
+        # so we can remove the redundant code that was here.
 
         # Save metadata to DB
         new_file = UserFile(
@@ -92,23 +90,34 @@ async def upload_file(
         raise HTTPException(
             status_code=500, detail="Upload failed. Check logs for details.")
 
-@router.get("/api/transcripts", response_model=None)
-async def get_transcript_list(
-    user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-) -> Dict[str, List[Dict[str, Any]]]:
-    files = db.query(UserFile).filter(UserFile.email == user.email).order_by(
-        UserFile.upload_timestamp.desc()
-    ).all()
-    return {
-        "files": [
-            {
-                "filename": f.filename,
-                "file_size": f.file_size,
-                "upload_timestamp": f.upload_timestamp
-            } for f in files
-        ]
-    }
+
+@router.get("/api/transcript/{filename:path}")
+def get_transcript_from_s3(filename: str, current_user: User = Depends(get_current_user)):
+    import boto3
+
+    s3 = boto3.client("s3", region_name=settings.aws_region)
+    base_name = os.path.splitext(filename)[0]
+
+    try:
+        # Construct the correct key for the transcript .txt file
+        transcript_key = f"transcripts/{base_name}.txt"
+        txt_obj = s3.get_object(Bucket=settings.s3_bucket,
+                                Key=transcript_key)
+        text = txt_obj["Body"].read().decode("utf-8")
+    except Exception:
+        raise HTTPException(status_code=404, detail="Transcript not found.")
+
+    # Construct the correct key for the segments .json file
+    segments_key = f"transcripts/{base_name}.json"
+
+    try:
+        seg_obj = s3.get_object(Bucket=settings.s3_bucket, Key=segments_key)
+        segments = json.loads(seg_obj["Body"].read().decode("utf-8"))
+    except Exception:
+        # If segments file doesn't exist, return an empty list as before
+        segments = []
+
+    return JSONResponse(content={"transcript": text, "segments": segments})
 
 
 @router.get("/api/transcript/{filename:path}")
