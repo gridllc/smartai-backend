@@ -120,31 +120,6 @@ def get_transcript_from_s3(filename: str, current_user: User = Depends(get_curre
     return JSONResponse(content={"transcript": text, "segments": segments})
 
 
-@router.get("/api/transcript/{filename:path}")
-def get_transcript_from_s3(filename: str, current_user: User = Depends(get_current_user)):
-    import boto3
-
-    s3 = boto3.client("s3", region_name=settings.aws_region)
-
-    try:
-        txt_obj = s3.get_object(Bucket=settings.s3_bucket,
-                                Key=f"transcripts/{filename}")
-        text = txt_obj["Body"].read().decode("utf-8")
-    except Exception:
-        raise HTTPException(status_code=404, detail="Transcript not found.")
-
-    # Standardized segment key naming
-    base = os.path.splitext(filename)[0]  # strips .mp4, .txt, etc.
-    segments_key = f"transcripts/{base_name}.json"
-
-    try:
-        seg_obj = s3.get_object(Bucket=settings.s3_bucket, Key=segments_key)
-        segments = json.loads(seg_obj["Body"].read().decode("utf-8"))
-    except Exception:
-        segments = []
-
-    return JSONResponse(content={"transcript": text, "segments": segments})
-
 @router.get("/api/share/{filename:path}", response_model=None)
 async def get_shared_transcript(filename: str) -> Dict[str, str]:
     safe_filename = os.path.basename(filename)
@@ -260,43 +235,40 @@ def get_saved_quiz(filename: str, user=Depends(get_current_user)):
 
 
 @router.post("/api/transcript/{filename:path}/note")
-def save_note(
-    filename: str,
-    input: NoteInput,
-    user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    safe_name = os.path.basename(filename)
-    note_path = os.path.join(settings.transcript_dir, f"{safe_name}_note.json")
+def save_note(filename: str, note_data: dict, user=Depends(get_current_user)):
+    base = os.path.splitext(os.path.basename(filename))[0]
+    s3_key = f"transcripts/{base}_note.json"
+    payload = {
+        "email": user.email,
+        "note": note_data.get("note", "")
+    }
 
     try:
-        with open(note_path, "w", encoding="utf-8") as f:
-            json.dump({"email": user.email, "note": input.note}, f)
-        return {"message": "Note saved successfully"}
-    except Exception as e:
+        s3.put_object(
+            Bucket=settings.s3_bucket,
+            Key=s3_key,
+            Body=json.dumps(payload).encode("utf-8"),
+            ContentType="application/json"
+        )
+        return {"message": "Note saved"}
+    except Exception:
         raise HTTPException(status_code=500, detail="Failed to save note")
 
-
 @router.get("/api/transcript/{filename:path}/note")
-def get_note(
-    filename: str,
-    user=Depends(get_current_user)
-):
-    safe_name = os.path.basename(filename)
-    note_path = os.path.join(settings.transcript_dir, f"{safe_name}_note.json")
-
-    if not os.path.exists(note_path):
-        return {"note": ""}
+def get_note(filename: str, user=Depends(get_current_user)):
+    base = os.path.splitext(os.path.basename(filename))[0]
+    s3_key = f"transcripts/{base}_note.json"
 
     try:
-        with open(note_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        note_obj = s3.get_object(Bucket=settings.s3_bucket, Key=s3_key)
+        data = json.loads(note_obj["Body"].read().decode("utf-8"))
         if data["email"] != user.email:
-            raise HTTPException(
-                status_code=403, detail="Unauthorized to access this note")
+            raise HTTPException(status_code=403, detail="Unauthorized")
         return {"note": data["note"]}
+    except s3.exceptions.NoSuchKey:
+        return {"note": ""}
     except Exception:
-        raise HTTPException(status_code=500, detail="Failed to read note")
+        raise HTTPException(status_code=500, detail="Failed to load note")
 
 
 @router.post("/api/transcript/{filename:path}/segments")
