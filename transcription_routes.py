@@ -235,24 +235,33 @@ def get_saved_quiz(filename: str, user=Depends(get_current_user)):
 
 
 @router.post("/api/transcript/{filename:path}/note")
-def save_note(filename: str, note_data: dict, user=Depends(get_current_user)):
+def save_note_to_s3(
+    filename: str,
+    payload: Dict[str, str],
+    user=Depends(get_current_user)
+):
+    import boto3
+
     base = os.path.splitext(os.path.basename(filename))[0]
     s3_key = f"transcripts/{base}_note.json"
-    payload = {
+    s3 = boto3.client("s3", region_name=settings.aws_region)
+
+    data = {
         "email": user.email,
-        "note": note_data.get("note", "")
+        "note": payload.get("note", "")
     }
 
     try:
         s3.put_object(
             Bucket=settings.s3_bucket,
             Key=s3_key,
-            Body=json.dumps(payload).encode("utf-8"),
+            Body=json.dumps(data).encode("utf-8"),
             ContentType="application/json"
         )
-        return {"message": "Note saved"}
+        return {"success": True}
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to save note")
+
 
 @router.get("/api/transcript/{filename:path}/note")
 def get_note(filename: str, user=Depends(get_current_user)):
