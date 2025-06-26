@@ -6,14 +6,15 @@
     <title>SmartAI Audio Transcriber</title>
     <link rel="stylesheet" href="/static/style.css" />
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
-
+    
     <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
     <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
     <link rel="icon" sizes="192x192" href="/static/android-chrome-192x192.png">
     <link rel="icon" sizes="512x512" href="/static/android-chrome-512x512.png">
     <link rel="manifest" href="/static/site.webmanifest">
-
+    
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -22,7 +23,17 @@
         body.dark { background-color: #111; color: #eee; }
         .dark input, .dark button, .dark textarea, .dark select { background-color: #222; color: #fff; border-color: #555; }
         .dark .profile-box, .dark .source-block, .dark #transcriptDetailPanel, .dark #transcriptPreviewBox, .dark .quiz-item, .dark #summaryContainer, .dark #quizViewPanel, .dark .modal-content { background-color: #333; border-color: #555; }
-        .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #555; border-radius: 50%; animation: spin 1s linear infinite; margin-left: 10px; }
+        .spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #555;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         #answerText { white-space: pre-wrap; font-size: 1rem; line-height: 1.5; }
         .source-block { margin-top: 10px; padding: 10px; border: 1px solid #aaa; border-radius: 6px; background: #f9f9f9; font-size: 0.9em; }
@@ -50,14 +61,17 @@
 
 <body>
     <div id="appUI" style="display: none;">
-        <button id="logout">Logout</button>
+        <<button id="logout">Logout</button>
         <button id="profileToggle">Profile</button>
         <button id="darkToggle">Dark Mode</button>
         <button id="analyticsToggle" style="display: none;">Analytics</button>
         <button id="exportLogBtn" style="display: none;">Export Log</button>
         <h1 id="welcomeHeader">SmartAI Audio Transcriber</h1>
-        <input type="file" id="fileInput" />
-        <button id="uploadBtn">Upload & Transcribe</button>
+        <div>
+            <input type="file" id="fileInput" />
+            <button id="uploadBtn">Upload & Transcribe</button>
+            <div id="spinner" class="spinner" style="display: none;"></div>
+        </div>
         <div style="margin: 15px 0;">
             <input type="text" id="searchInput" placeholder="Search by filename...">
             <input type="text" id="tagSearchInput" placeholder="Filter by tag...">
@@ -71,7 +85,7 @@
         <h2>Ask a Question</h2>
         <input type="text" id="questionInput" placeholder="Ask a question..." />
         <button id="askQuestionBtn">Ask</button>
-        <div id="spinner" class="spinner" style="display: none;"></div>
+        <div id="answerSpinner" class="spinner" style="display: none;"></div>
         <div id="answerBox">
             <div id="answerText"></div>
             <div id="sourcesBox"></div>

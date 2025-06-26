@@ -130,7 +130,7 @@ async function updateTag(filename, tag) {
 async function askQuestion() {
     const questionInput = document.getElementById("questionInput"), question = questionInput.value.trim();
     if (!question) return showToast("Please enter a question.", "error");
-    const answerText = document.getElementById("answerText"), sourcesBox = document.getElementById("sourcesBox"), spinner = document.getElementById("spinner");
+    const answerText = document.getElementById("answerText"), sourcesBox = document.getElementById("sourcesBox"), spinner = document.getElementById("askSpinner");
     answerText.textContent = ""; sourcesBox.innerHTML = ""; spinner.style.display = "inline-block";
     try {
         const response = await fetchWithRefresh("/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) });
