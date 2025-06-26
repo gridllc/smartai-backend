@@ -94,7 +94,7 @@ if __name__ == "__main__":
             process_file(os.path.join(transcript_dir, file))
 
 
-async def transcribe_audio(file_path: str, filename: str) -> tuple[str, list[dict], str, str]:
+async def transcribe_audio(file_path: str, filename: str) -> tuple[str, list[dict], str, str, str]:
     print(f"\U0001F3A7 Transcribing audio from {file_path}")
 
     if not os.path.exists(file_path):
@@ -107,18 +107,15 @@ async def transcribe_audio(file_path: str, filename: str) -> tuple[str, list[dic
 
     full_text = result.get("text", "")
     segments = result.get("segments", [])
+    base_name = os.path.splitext(filename)[0]
 
     # Save transcript locally
-    transcript_filename = f"{os.path.splitext(filename)[0]}.txt"
+    transcript_filename = f"{base_name}.txt"
     transcript_path = os.path.join("transcripts", transcript_filename)
     with open(transcript_path, "w", encoding="utf-8") as f:
         f.write(full_text)
 
-    # Upload to S3
-    audio_s3_url = upload_to_s3(file_path, f"uploads/{filename}")
-    transcript_s3_url = upload_to_s3(
-        transcript_path, f"transcripts/{transcript_filename}")
-
+    # Format segments
     formatted_segments = [
         {
             "start": round(seg["start"], 2),
@@ -128,6 +125,18 @@ async def transcribe_audio(file_path: str, filename: str) -> tuple[str, list[dic
         for seg in segments
     ]
 
-    return full_text, formatted_segments, audio_s3_url, transcript_s3_url
+    # Save segments locally
+    segments_filename = f"{base_name}.json"
+    segments_path = os.path.join("transcripts", segments_filename)
+    with open(segments_path, "w", encoding="utf-8") as f:
+        json.dump(formatted_segments, f, indent=2)
 
+    # Upload all assets to S3
+    audio_s3_url = upload_to_s3(file_path, f"uploads/{filename}")
+    transcript_s3_url = upload_to_s3(
+        transcript_path, f"transcripts/{transcript_filename}")
+    # Upload the segments file to S3
+    upload_to_s3(segments_path, f"transcripts/{segments_filename}")
+
+    return full_text, formatted_segments, audio_s3_url, transcript_s3_url, transcript_path
 
