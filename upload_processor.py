@@ -1,5 +1,6 @@
 import os
 import subprocess
+import json
 from uuid import uuid4
 from dotenv import load_dotenv
 from pinecone import Pinecone
