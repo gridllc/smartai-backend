@@ -206,48 +206,6 @@ async def download_all_transcripts(
 
 
 # CHANGE: Changed @router.post to @app.post
-@app.post("/api/upload")
-async def upload_file(
-    file: UploadFile = File(...),
-    user=Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    try:
-        extension = os.path.splitext(file.filename)[1]
-        unique_name = f"{uuid.uuid4().hex}{extension}"
-        upload_path = os.path.join("uploads", unique_name)
-
-        async with aiofiles.open(upload_path, "wb") as out_file:
-            content = await file.read()
-            await out_file.write(content)
-
-        transcript_text, segments = await transcribe_audio(upload_path, unique_name)
-        transcript_path = os.path.join(
-            settings.transcript_dir, unique_name + ".txt")
-        segments_path = transcript_path.replace(".txt", ".json")
-
-        async with aiofiles.open(transcript_path, "w", encoding="utf-8") as f:
-            await f.write(transcript_text)
-        async with aiofiles.open(segments_path, "w", encoding="utf-8") as f:
-            await f.write(json.dumps(segments, indent=2))
-
-        new_file = UserFile(
-            email=user.email,
-            filename=unique_name,
-            file_size=len(content),
-            upload_timestamp=datetime.utcnow()
-        )
-        db.add(new_file)
-        db.commit()
-        db.refresh(new_file)  # optional, but safe
-
-        return {"message": "File uploaded and transcribed", "filename": unique_name}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
-
-
-# CHANGE: Changed @router.post to @app.post
 @app.post("/api/quiz/generate")
 def generate_question(
     input_data: SegmentInput,

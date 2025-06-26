@@ -34,7 +34,8 @@ class UserFile(Base):
     filename = Column(String, nullable=False)
     file_size = Column(Integer)
     upload_timestamp = Column(DateTime, default=datetime.utcnow)
-
+    audio_url = Column(String, nullable=True)
+    transcript_url = Column(String, nullable=True)
 
 class QAHistory(Base):
     __tablename__ = "qa_history"

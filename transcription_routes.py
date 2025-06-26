@@ -42,6 +42,56 @@ class EditQuizInput(BaseModel):
     new_question: str
 
 
+@router.post("/api/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        extension = os.path.splitext(file.filename)[1]
+        unique_name = f"{uuid.uuid4().hex}{extension}"
+        upload_path = os.path.join("uploads", unique_name)
+
+        # Save uploaded file locally
+        async with aiofiles.open(upload_path, "wb") as out_file:
+            content = await file.read()
+            await out_file.write(content)
+
+        # Transcribe and upload to S3
+        transcript_text, segments, audio_url, transcript_url = await transcribe_audio(upload_path, unique_name)
+
+        # Save segments JSON
+        segments_path = os.path.join("transcripts", f"{unique_name}.json")
+        async with aiofiles.open(segments_path, "w", encoding="utf-8") as f:
+            await f.write(json.dumps(segments, indent=2))
+
+        # Save metadata to DB
+        new_file = UserFile(
+            email=user.email,
+            filename=unique_name,
+            file_size=len(content),
+            upload_timestamp=datetime.utcnow(),
+            audio_url=audio_url,
+            transcript_url=transcript_url
+        )
+        db.add(new_file)
+        db.commit()
+        db.refresh(new_file)
+
+        return JSONResponse(status_code=200, content={
+            "message": "File uploaded and transcribed",
+            "filename": unique_name,
+            "audio_url": audio_url,
+            "transcript_url": transcript_url
+        })
+
+    except Exception:
+        import traceback
+        print("❌ Upload failed:\n", traceback.format_exc())
+        raise HTTPException(
+            status_code=500, detail="Upload failed. Check logs for details.")
+
 @router.get("/api/transcripts", response_model=None)
 async def get_transcript_list(
     user=Depends(get_current_user),
