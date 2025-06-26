@@ -111,7 +111,7 @@ async def get_transcript_list(
     }
 
 
-@router.get("/api/transcript/{filename}")
+@router.get("/api/transcript/{filename:path}")
 def get_transcript_from_s3(filename: str, current_user: User = Depends(get_current_user)):
     import boto3
 
@@ -124,7 +124,10 @@ def get_transcript_from_s3(filename: str, current_user: User = Depends(get_curre
     except Exception:
         raise HTTPException(status_code=404, detail="Transcript not found.")
 
-    segments_key = f"transcripts/{filename.replace('.txt', '.json')}"
+    # Standardized segment key naming
+    base = os.path.splitext(filename)[0]  # strips .mp4, .txt, etc.
+    segments_key = f"transcripts/{base_name}.json"
+
     try:
         seg_obj = s3.get_object(Bucket=settings.s3_bucket, Key=segments_key)
         segments = json.loads(seg_obj["Body"].read().decode("utf-8"))
@@ -133,7 +136,7 @@ def get_transcript_from_s3(filename: str, current_user: User = Depends(get_curre
 
     return JSONResponse(content={"transcript": text, "segments": segments})
 
-@router.get("/api/share/{filename}", response_model=None)
+@router.get("/api/share/{filename:path}", response_model=None)
 async def get_shared_transcript(filename: str) -> Dict[str, str]:
     safe_filename = os.path.basename(filename)
     path = os.path.join(settings.transcript_dir, safe_filename)
@@ -232,7 +235,7 @@ Question:
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
-@router.get("/api/quiz/{filename}")
+@router.get("/api/quiz/{filename:path}")
 def get_saved_quiz(filename: str, user=Depends(get_current_user)):
     quiz_path = os.path.join(settings.transcript_dir, f"{filename}_quiz.json")
 
@@ -247,7 +250,7 @@ def get_saved_quiz(filename: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="Failed to load quiz")
 
 
-@router.post("/api/transcript/{filename}/note")
+@router.post("/api/transcript/{filename:path}/note")
 def save_note(
     filename: str,
     input: NoteInput,
@@ -265,7 +268,7 @@ def save_note(
         raise HTTPException(status_code=500, detail="Failed to save note")
 
 
-@router.get("/api/transcript/{filename}/note")
+@router.get("/api/transcript/{filename:path}/note")
 def get_note(
     filename: str,
     user=Depends(get_current_user)
@@ -287,19 +290,26 @@ def get_note(
         raise HTTPException(status_code=500, detail="Failed to read note")
 
 
-@router.post("/api/transcript/{filename}/segments")
+@router.post("/api/transcript/{filename:path}/segments")
 async def save_segments(filename: str, data: dict, user=Depends(get_current_user)):
     safe_filename = os.path.basename(filename)
-    path = os.path.join(settings.transcript_dir,
-                        safe_filename.replace(".txt", ".json"))
+    base_name = os.path.splitext(safe_filename)[0]
+    s3_key = f"transcripts/{base_name}.json"
+    segments_content = json.dumps(data.get("segments", []), indent=2)
 
     try:
-        async with aiofiles.open(path, "w", encoding="utf-8") as f:
-            await f.write(json.dumps(data.get("segments", []), indent=2))
+        s3 = boto3.client("s3", region_name=settings.aws_region)
+        s3.put_object(
+            Bucket=settings.s3_bucket,
+            Key=s3_key,
+            Body=segments_content.encode("utf-8"),
+            ContentType="application/json"
+        )
         return {"message": "Segments updated successfully"}
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to save segments: {str(e)}")
+            status_code=500, detail=f"Failed to save segments to S3: {str(e)}"
+        )
 
 
 @router.post("/api/suggest")
@@ -320,7 +330,7 @@ def suggest_text(data: dict, user=Depends(get_current_user)):
             status_code=500, detail=f"Suggestion failed: {str(e)}")
 
 
-@router.post("/api/transcript/{filename}/auto-segment")
+@router.post("/api/transcript/{filename:path}/auto-segment")
 def auto_segment_transcript(filename: str, user=Depends(get_current_user)):
     transcript_path = os.path.join(settings.transcript_dir, filename)
     segment_path = transcript_path.replace(".txt", ".json")
@@ -358,7 +368,7 @@ Transcript:
             status_code=500, detail=f"Segmentation failed: {str(e)}")
 
 
-@router.delete("/api/quiz/{filename}/{timestamp}")
+@router.delete("/api/quiz/{filename:path}/{timestamp}")
 def delete_quiz_question(filename: str, timestamp: float, user=Depends(get_current_user)):
     safe_name = os.path.basename(filename)
     path = os.path.join(settings.transcript_dir, f"{safe_name}_quiz.json")
@@ -381,7 +391,7 @@ def delete_quiz_question(filename: str, timestamp: float, user=Depends(get_curre
             status_code=500, detail="Failed to delete question")
 
 
-@router.patch("/api/quiz/{filename}")
+@router.patch("/api/quiz/{filename:path}")
 def update_quiz_question(filename: str, update: EditQuizInput, user=Depends(get_current_user)):
     safe_name = os.path.basename(filename)
     path = os.path.join(settings.transcript_dir, f"{safe_name}_quiz.json")
@@ -413,33 +423,35 @@ def update_quiz_question(filename: str, update: EditQuizInput, user=Depends(get_
             status_code=500, detail="Failed to update question")
 
 
-@router.delete("/api/quiz/{filename}")
-def delete_quiz_question(
-    filename: str,
-    timestamp: float = Query(...),
-    user=Depends(get_current_user)
-):
-    safe_name = os.path.basename(filename)
-    path = os.path.join(settings.transcript_dir, f"{safe_name}_quiz.json")
+@router.delete("/api/delete/{filename:path}")
+async def delete_transcript(filename: str, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    from s3_utils import s3
+    import traceback
 
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="Quiz file not found")
+    safe_name = os.path.basename(filename)
+    base = os.path.splitext(safe_name)[0]
 
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            quiz_data = json.load(f)
+        # Delete from S3
+        s3.delete_object(Bucket=settings.s3_bucket, Key=f"uploads/{safe_name}")
+        s3.delete_object(Bucket=settings.s3_bucket,
+                         Key=f"transcripts/{base}.txt")
+        s3.delete_object(Bucket=settings.s3_bucket,
+                         Key=f"transcripts/{base}.json")
 
-        updated = [q for q in quiz_data if abs(
-            q.get("timestamp", -1) - timestamp) >= 0.01]
+        # Delete from DB
+        db_obj = db.query(UserFile).filter(
+            UserFile.filename == safe_name,
+            UserFile.email == user.email
+        ).first()
 
-        if len(updated) == len(quiz_data):
-            raise HTTPException(
-                status_code=404, detail="Quiz question not found")
+        if db_obj:
+            db.delete(db_obj)
+            db.commit()
 
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(updated, f, indent=2)
+        return {"message": f"{safe_name} deleted from S3 and DB."}
 
-        return {"message": "Quiz question deleted"}
-    except Exception:
+    except Exception as e:
+        traceback.print_exc()
         raise HTTPException(
-            status_code=500, detail="Failed to delete question")
+            status_code=500, detail=f"Failed to delete file: {str(e)}")

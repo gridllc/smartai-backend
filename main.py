@@ -90,7 +90,7 @@ def root():
     return FileResponse("static/index.html")
 
 
-@app.get("/audio/{filename}")
+@app.get("/audio/{filename:path}")
 async def serve_audio(filename: str):
     filepath = os.path.join("uploads", filename)
     if not os.path.exists(filepath):
@@ -125,7 +125,7 @@ async def api_history(user=Depends(get_current_user), db: Session = Depends(get_
 
 
 # CHANGE: Changed @router.get to @app.get
-@app.get("/api/transcript/{filename}")
+@app.get("/api/transcript/{filename:path}")
 def get_transcript(
     filename: str,
     current_user: User = Depends(get_current_user)
@@ -151,7 +151,7 @@ def get_transcript(
 
 
 # CHANGE: Changed @router.post to @app.post
-@app.post("/api/transcript/{filename}/segments")
+@app.post("/api/transcript/{filename:path}/segments")
 async def save_segments(filename: str, segments_data: dict, user=Depends(get_current_user)):
     try:
         segments_path = os.path.join(
@@ -165,7 +165,7 @@ async def save_segments(filename: str, segments_data: dict, user=Depends(get_cur
 
 
 # CHANGE: Changed @router.get to @app.get
-@app.get("/api/share/{filename}", response_model=None)
+@app.get("/api/share/{filename:path}", response_model=None)
 async def get_shared_transcript(filename: str) -> Dict[str, str]:
     safe_filename = os.path.basename(filename)
     path = os.path.join(settings.transcript_dir, safe_filename)
@@ -260,7 +260,7 @@ Question:
 
 
 # CHANGE: Changed @router.get to @app.get
-@app.get("/api/quiz/{filename}")
+@app.get("/api/quiz/{filename:path}")
 def get_saved_quiz(filename: str, user=Depends(get_current_user)):
     quiz_path = os.path.join(settings.transcript_dir, f"{filename}_quiz.json")
 
