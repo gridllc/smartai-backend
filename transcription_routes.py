@@ -1,23 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi import File, UploadFile
-import uuid
-from datetime import datetime
-from upload_processor import transcribe_audio
-from fastapi import Query
-from sqlalchemy.orm import Session
-from models import UserFile, User
-from auth import get_current_user
-from database import get_db
-from config import settings
-from openai import OpenAI
+# Standard Library
 import os
 import io
 import json
-import aiofiles
+import uuid
+from datetime import datetime
 from zipfile import ZipFile
-from typing import Dict, List, Any
+
+# Third-Party
+import boto3
+import aiofiles
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Query
+from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from openai import OpenAI
+
+# Local
+from upload_processor import transcribe_audio
+from auth import get_current_user
+from database import get_db
+from config import settings
+from models import UserFile, User
 
 router = APIRouter()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -58,29 +61,26 @@ async def get_transcript_list(
 
 
 @router.get("/api/transcript/{filename}")
-def get_transcript(
-    filename: str,
-    current_user: User = Depends(get_current_user)
-):
-    transcript_path = os.path.join(settings.transcript_dir, filename)
-    segments_path = transcript_path.replace(".txt", ".json")
+def get_transcript_from_s3(filename: str, current_user: User = Depends(get_current_user)):
+    import boto3
 
-    if not os.path.exists(transcript_path):
+    s3 = boto3.client("s3", region_name=settings.aws_region)
+
+    try:
+        txt_obj = s3.get_object(Bucket=settings.s3_bucket,
+                                Key=f"transcripts/{filename}")
+        text = txt_obj["Body"].read().decode("utf-8")
+    except Exception:
         raise HTTPException(status_code=404, detail="Transcript not found.")
 
-    with open(transcript_path, "r", encoding="utf-8") as f:
-        text = f.read()
-
-    segments = []
-    if os.path.exists(segments_path):
-        try:
-            with open(segments_path, "r", encoding="utf-8") as sf:
-                segments = json.load(sf)
-        except Exception:
-            print(f"Warning: Failed to parse {segments_path}")
+    segments_key = f"transcripts/{filename.replace('.txt', '.json')}"
+    try:
+        seg_obj = s3.get_object(Bucket=settings.s3_bucket, Key=segments_key)
+        segments = json.loads(seg_obj["Body"].read().decode("utf-8"))
+    except Exception:
+        segments = []
 
     return JSONResponse(content={"transcript": text, "segments": segments})
-
 
 @router.get("/api/share/{filename}", response_model=None)
 async def get_shared_transcript(filename: str) -> Dict[str, str]:
