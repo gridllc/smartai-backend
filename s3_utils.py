@@ -11,7 +11,6 @@ s3 = boto3.client(
 
 
 def upload_to_s3(local_path: str, s3_key: str) -> str:
-    s3.upload_file(local_path, settings.s3_bucket, s3_key,
-                   ExtraArgs={"ACL": "public-read"})
+    s3.upload_file(local_path, settings.s3_bucket, s3_key)
     url = f"https://{settings.s3_bucket}.s3.{settings.aws_region}.amazonaws.com/{s3_key}"
     return url
