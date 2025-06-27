@@ -6,6 +6,11 @@ from dotenv import load_dotenv
 from pinecone import Pinecone
 from openai import OpenAI
 import whisper
+from whisper import load_model
+import boto3
+from botocore.exceptions import ClientError
+from config import settings  # Assuming you have a config.py for settings
+from utils import upload_to_s3
 from s3_utils import upload_to_s3
 
 load_dotenv()
@@ -13,6 +18,7 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 index = pc.Index("smartai-transcripts")
+s3 = boto3.client("s3", region_name=settings.aws_region)
 
 EMBED_MODEL = "text-embedding-3-small"
 CHUNK_SIZE = 500  # characters per chunk
@@ -95,28 +101,20 @@ if __name__ == "__main__":
             process_file(os.path.join(transcript_dir, file))
 
 
-# Correct the type hint to show it returns 5 string/list/string/string/string values
-async def transcribe_audio(file_path: str, filename: str) -> tuple[str, list[dict], str, str, str]:
-    # --------------------------------------------------------
-    print(f"\U0001F3A7 Transcribing audio from {file_path}")
+async def transcribe_audio(file_path: str, filename: str):
+    print(f"Ἲ7 Transcribing audio from {file_path}")
 
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Audio file not found: {file_path}")
 
-    model = whisper.load_model("base")
+    model = load_model("base")
     result = model.transcribe(file_path)
 
-    print(f"\u2705 Transcription completed for {os.path.basename(file_path)}")
+    print(f"✅ Transcription completed for {os.path.basename(file_path)}")
 
     full_text = result.get("text", "")
     segments = result.get("segments", [])
     base_name = os.path.splitext(filename)[0]
-
-    # Save transcript locally
-    transcript_filename = f"{base_name}.txt"
-    transcript_path = os.path.join("transcripts", transcript_filename)
-    with open(transcript_path, "w", encoding="utf-8") as f:
-        f.write(full_text)
 
     # Format segments
     formatted_segments = [
@@ -128,20 +126,18 @@ async def transcribe_audio(file_path: str, filename: str) -> tuple[str, list[dic
         for seg in segments
     ]
 
-    # Save segments locally
-    segments_filename = f"{base_name}.json"
-    segments_path = os.path.join("transcripts", segments_filename)
-    with open(segments_path, "w", encoding="utf-8") as f:
-        json.dump(formatted_segments, f, indent=2)
+    # Save transcript to S3
+    transcript_key = f"transcripts/{base_name}.txt"
+    upload_to_s3(full_text, transcript_key, content_type="text/plain")
 
-    # Upload all assets to S3
-    audio_s3_url = upload_to_s3(file_path, f"uploads/{filename}")
-    transcript_s3_url = upload_to_s3(
-        transcript_path, f"transcripts/{transcript_filename}")
+    # Save segments to S3
+    segments_key = f"transcripts/{base_name}.json"
+    upload_to_s3(json.dumps(formatted_segments, indent=2),
+                 segments_key, content_type="application/json")
 
-    # This line ensures the segments file is also uploaded
-    upload_to_s3(segments_path, f"transcripts/{segments_filename}")
+    # Save audio file to S3
+    audio_key = f"uploads/{filename}"
+    audio_url = upload_to_s3(file_path, audio_key)
 
-    # This return statement is already correct (returns 5 values)
-    return full_text, formatted_segments, audio_s3_url, transcript_s3_url, transcript_path
+    return full_text, formatted_segments, audio_url, transcript_key
 
