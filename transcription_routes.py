@@ -92,8 +92,10 @@ async def upload_file(file: UploadFile = File(...), user=Depends(get_current_use
 
 @router.get("/api/transcripts", response_model=List[Dict[str, Any]])
 async def get_transcript_list(user=Depends(get_current_user), db: Session = Depends(get_db)):
-    files = files = db.query(UserFile).filter(UserFile.user_id == user.id).order_by(
+    files = db.query(UserFile).filter(UserFile.user_id == user.id).order_by(
         UserFile.upload_timestamp.desc()).all()
+
+    return [
         {
             "filename": f.filename,
             "file_size": f.file_size,
@@ -103,7 +105,6 @@ async def get_transcript_list(user=Depends(get_current_user), db: Session = Depe
         }
         for f in files
     ]
-
 
 @router.get("/api/transcript/{filename:path}")
 def get_transcript_from_s3(filename: str, user=Depends(get_current_user)):
