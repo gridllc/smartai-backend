@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, JSON
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Text, DateTime, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
@@ -8,11 +8,12 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
-    email = Column(String, unique=True, index=True, nullable=False)
-    password = Column(String, nullable=False)
+    id = Column(Integer, primary_key=True)
+    email = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
 
+    files = relationship("UserFile", back_populates="user")
+    
 
 class ActivityLog(Base):
     __tablename__ = "activity"
@@ -28,14 +29,12 @@ class ActivityLog(Base):
 
 class UserFile(Base):
     __tablename__ = "user_files"
+    id = Column(Integer, primary_key=True)
+    filename = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, nullable=False)
-    filename = Column(String, nullable=False)
-    file_size = Column(Integer)
-    upload_timestamp = Column(DateTime, default=datetime.utcnow)
-    audio_url = Column(String, nullable=True)
-    transcript_url = Column(String, nullable=True)
+    user = relationship("User", back_populates="files")
 
 class QAHistory(Base):
     __tablename__ = "qa_history"
