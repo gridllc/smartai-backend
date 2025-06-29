@@ -8,6 +8,7 @@ from typing import Optional
 from dotenv import load_dotenv
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from passlib.exc import UnknownHashError
 from sqlalchemy.orm import Session
 from models import User
 from database import get_db
@@ -28,7 +29,11 @@ security = HTTPBearer()
 
 # ───────────── Token & Hash Helpers ─────────────
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    try:
+        return pwd_context.verify(plain, hashed)
+    except UnknownHashError:
+        print(f"[auth.py] Invalid hash detected: {hashed}")
+        return False
 
 
 def get_password_hash(password: str) -> str:
@@ -47,6 +52,7 @@ def create_refresh_token(data: dict) -> str:
     to_encode = data.copy()
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
 
 def decode_refresh_token(token: str):
     try:
@@ -106,6 +112,5 @@ def get_current_user(
         return user
     except JWTError:
         raise HTTPException(status_code=403, detail="Invalid or expired token")
-    
 
     # router = APIRouter() is already defined above
