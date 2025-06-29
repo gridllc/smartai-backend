@@ -68,9 +68,11 @@ class Settings(BaseSettings):
         ".wav", ".mp3", ".m4a", ".flac", ".ogg", ".mp4", ".mov", ".mkv", ".avi"
     ]
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": False,
+        "extra": "allow"
+    }
 
 
 # Create settings instance
