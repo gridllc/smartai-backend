@@ -36,3 +36,15 @@ class QAHistory(Base):
     answer = Column(Text, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
     sources_used = Column(JSON)  # Stored as JSON array
+
+
+class UserFile(Base):
+    __tablename__ = "user_files"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String, nullable=False)
+    filename = Column(String, nullable=False)
+    file_size = Column(Integer, nullable=True)
+    upload_timestamp = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="files")
