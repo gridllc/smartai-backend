@@ -42,7 +42,7 @@ class UserFile(Base):
     __tablename__ = "user_files"
 
     id = Column(Integer, primary_key=True)
-    email = Column(String, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     filename = Column(String, nullable=False)
     file_size = Column(Integer, nullable=True)
     upload_timestamp = Column(DateTime, default=datetime.utcnow)
