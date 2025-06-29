@@ -1,0 +1,43 @@
+ 1️⃣ Connect to your local Postgres
+Since you set up Postgres locally with user postgres and password MyNewSecurePassword123, you can connect using psql.
+
+Open your admin Command Prompt and run:
+
+bash
+Copy
+Edit
+psql -U postgres
+then enter the password:
+
+nginx
+Copy
+Edit
+MyNewSecurePassword123
+✅ That should drop you at the postgres=# prompt.
+
+🟢 2️⃣ Switch to your app’s database
+If you created a local database with the same name as production (smartai_db_2819), switch to it:
+
+sql
+Copy
+Edit
+\c smartai_db_2819
+If you never made that database locally, you’ll stay on the default postgres database.
+
+🟢 3️⃣ Describe the users table
+To check the table structure, run:
+
+sql
+Copy
+Edit
+\d users
+✅ This will list all columns, including whether a password column exists.
+
+🟢 4️⃣ View user rows
+You can see the actual contents of the table:
+
+sql
+Copy
+Edit
+SELECT * FROM users LIMIT 5;
+✅ That will help confirm if there is any user with a NULL password or missing data.

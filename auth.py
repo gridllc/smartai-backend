@@ -58,7 +58,7 @@ def decode_refresh_token(token: str):
 # ───────────── DB Auth Helpers ─────────────
 def authenticate_user(db: Session, email: str, password: str) -> User:
     user = db.query(User).filter(User.email == email).first()
-    if not user or not verify_password(password, user.password):
+    if not user or not verify_password(password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return user
 
@@ -71,7 +71,7 @@ def register_user(db: Session, email: str, password: str, name: Optional[str] = 
     user = User(
         name=name or email.split("@")[0],
         email=email,
-        password=get_password_hash(password)
+        hashed_password=get_password_hash(password)
     )
     db.add(user)
     db.commit()

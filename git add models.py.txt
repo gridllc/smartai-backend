@@ -1,0 +1,8 @@
+git add models.py
+git add upload_processor.py
+git add main.py  # or 
+git add transcription_routes.py
+git add s3_utils.py
+git add alembic/versions/9ee83c767eb3_add_audio_url_and_transcript_url_to_.py
+git commit -m "feat: add S3 support and store audio/transcript URLs in user_files"
+git push

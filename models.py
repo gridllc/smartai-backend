@@ -5,16 +5,6 @@ from datetime import datetime
 
 Base = declarative_base()
 
-class User(Base):
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True)
-    email = Column(String, unique=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
-
-    files = relationship("UserFile", back_populates="user")
-    
-
 class ActivityLog(Base):
     __tablename__ = "activity"
 
@@ -27,14 +17,15 @@ class ActivityLog(Base):
     user_agent = Column(String)
 
 
-class UserFile(Base):
-    __tablename__ = "user_files"
-    id = Column(Integer, primary_key=True)
-    filename = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+class User(Base):
+    __tablename__ = "users"
 
-    user = relationship("User", back_populates="files")
+    id = Column(Integer, primary_key=True)
+    email = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    name = Column(String, nullable=True)
+
+    files = relationship("UserFile", back_populates="user")
 
 class QAHistory(Base):
     __tablename__ = "qa_history"
