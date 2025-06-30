@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, Cookie
-from pydantic import BaseModel
+from pydantic import EmailStr
 from schemas import LoginRequest, RegisterRequest
 from typing import Optional
 from sqlalchemy.orm import Session
@@ -13,18 +13,6 @@ from database import get_db
 
 router = APIRouter(prefix="/auth")
 limiter = Limiter(key_func=get_remote_address)
-
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-class RegisterRequest(BaseModel):
-    email: EmailStr
-    password: str
-    password_confirm: str
-    name: str
 
 
 @router.post("/register")
