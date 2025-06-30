@@ -16,7 +16,6 @@ from typing import Dict, List, Any
 import aiofiles
 from openai import OpenAI
 from sqlalchemy.orm import Session
-from starlette.responses import FileResponse
 from fastapi import (
     FastAPI, APIRouter, UploadFile, File, Depends,
     HTTPException, Header, Request, Body
@@ -62,10 +61,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # CORS (allow all for dev)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # dev
-        "https://smartai-pg.onrender.com",  # production
-    ],
+    allow_origins=["https://smartai-backend.onrender.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -78,22 +74,17 @@ class SegmentInput(BaseModel):
     timestamp: float | None = None
 
 
-# Ensure upload and transcripts directories exist
+# Ensure the uploads directory exists
+# Ensure upload and transcript directories exist
 os.makedirs("uploads", exist_ok=True)
 os.makedirs("transcripts", exist_ok=True)
-os.makedirs("segments", exist_ok=True)
+
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.mount("/transcripts", StaticFiles(directory="transcripts"),
           name="transcripts")
-
-# Register your routers
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
-app.include_router(transcription_router,
-                   prefix="/transcription", tags=["transcription"])
-app.include_router(qa_router, prefix="/qa", tags=["qa"])
 
 
 @app.get("/", include_in_schema=False)
@@ -112,10 +103,10 @@ async def serve_audio(filename: str):
 # CHANGE: Changed @router.get to @app.get
 @app.get("/api/transcripts")
 async def get_transcript_list(
-    user=Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict[str, List[Dict[str, Any]]]:
-    files = db.query(UserFile).filter(UserFile.email == user.email).order_by(
+    files = db.query(UserFile).filter(UserFile.user_id == user.id).order_by(
         UserFile.upload_timestamp.desc()
     ).all()
     return {
@@ -131,7 +122,7 @@ async def get_transcript_list(
 
 # CHANGE: Changed @router.get to @app.get
 @app.get("/api/history")
-async def api_history(user=Depends(get_current_user), db: Session = Depends(get_db)):
+async def api_history(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return await get_transcript_list(user, db)
 
 
@@ -196,11 +187,11 @@ async def get_shared_transcript(filename: str) -> Dict[str, str]:
 # CHANGE: Changed @router.get to @app.get
 @app.get("/api/download/all")
 async def download_all_transcripts(
-    user=Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     memory_file = io.BytesIO()
-    user_files = db.query(UserFile).filter(UserFile.email == user.email).all()
+    user_files = db.query(UserFile).filter(UserFile.user_id == user.id).all()
 
     with ZipFile(memory_file, 'w') as zipf:
         for file in user_files:
@@ -214,32 +205,6 @@ async def download_all_transcripts(
         "Content-Disposition": f"attachment; filename={user.email}_transcripts.zip"
     }
     return StreamingResponse(memory_file, media_type="application/zip", headers=headers)
-
-# Download a file
-
-
-@app.get("/api/download/{file_id}")
-def download_file(
-    file_id: int,
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user)
-):
-    file_record = db.query(UserFile).filter(
-        UserFile.id == file_id, UserFile.user_id == user.id
-    ).first()
-    if not file_record:
-        raise HTTPException(status_code=404, detail="File not found.")
-    return FileResponse(path=os.path.join("uploads", file_record.filename), filename=file_record.filename)
-
-# Serve segments
-
-
-@app.get("/segments/{segment_name}")
-def serve_segment(segment_name: str):
-    segment_path = os.path.join("segments", segment_name)
-    if not os.path.exists(segment_path):
-        raise HTTPException(status_code=404, detail="Segment not found")
-    return FileResponse(segment_path)
 
 
 # CHANGE: Changed @router.post to @app.post
@@ -344,14 +309,3 @@ def reset_password(data: dict = Body(...)):
     print(f"Reset link sent to: {email}")
 
     return {"message": "Reset instructions sent"}
-
-# Alembic migration trigger (optional, for one-click migration)
-
-
-@app.post("/run-migrations")
-def run_migrations():
-    try:
-        subprocess.run(["alembic", "upgrade", "head"], check=True)
-        return {"status": "success", "message": "Migrations applied."}
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"Migration failed: {e}")
