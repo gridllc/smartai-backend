@@ -54,14 +54,41 @@ function login() {
         .then(data => { localStorage.setItem("accessToken", data.access_token); localStorage.setItem("userEmail", email); localStorage.setItem("displayName", data.display_name || email.split('@')[0]); window.location.reload(); })
         .catch(err => err.then(e => showToast(`Login failed: ${e.detail}`, "error")));
 }
+
 function register() {
-    const name = document.getElementById("registerName").value, email = document.getElementById("registerEmail").value, password = document.getElementById("registerPassword").value;
-    if (!email || !password) return showToast("Please enter all fields.", "error");
-    fetch("/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password }) })
-        .then(res => res.ok ? res.json() : Promise.reject(res.json()))
-        .then(() => { showToast("Registration successful! Please log in.", "success"); showLogin(); })
-        .catch(err => err.then(e => showToast(`Registration failed: ${e.detail}`, "error")));
+    const name = document.getElementById("registerName").value,
+        email = document.getElementById("registerEmail").value,
+        password = document.getElementById("registerPassword").value,
+        passwordConfirm = document.getElementById("registerPasswordConfirm").value;
+
+    if (!email || !password || !passwordConfirm)
+        return showToast("Please enter all fields.", "error");
+
+    if (password !== passwordConfirm)
+        return showToast("Passwords do not match.", "error");
+
+    fetch("/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            name: name,
+            email: email,
+            password: password,
+            password_confirm: passwordConfirm
+        })
+    })
+        .then((res) => res.json())
+        .then((data) => {
+            if (data.message) {
+                showToast(data.message, "success");
+                window.location.href = "/"; // or wherever you redirect
+            } else {
+                showToast("Registration failed.", "error");
+            }
+        })
+        .catch(() => showToast("Network error.", "error"));
 }
+
 function logout() { localStorage.clear(); fetch("/auth/logout", { method: "POST", credentials: "include" }).finally(() => window.location.reload()); }
 function showRegister() { document.getElementById("loginBox").style.display = "none"; document.getElementById("registerBox").style.display = "block"; document.getElementById("resetBox").style.display = "none"; }
 function showReset() { document.getElementById("loginBox").style.display = "none"; document.getElementById("resetBox").style.display = "block"; document.getElementById("registerBox").style.display = "none"; }
