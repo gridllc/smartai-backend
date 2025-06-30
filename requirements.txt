@@ -39,7 +39,7 @@ httpx==0.28.1
 huggingface-hub==0.32.4
 idna==3.10
 imap-tools==1.10.0
-ipython==9.2.0
+ipython==8.18.1
 ipython_pygments_lexers==1.1.1
 jedi==0.19.2
 Jinja2==3.1.6
@@ -94,8 +94,6 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.1.0
 python-jose==3.5.0
 python-multipart==0.0.20
-pyttsx3==2.98
-pywin32==310
 PyYAML==6.0.2
 regex==2024.11.6
 requests==2.32.4
