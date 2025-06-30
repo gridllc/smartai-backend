@@ -50,13 +50,6 @@ app.include_router(qa_router)
 app.include_router(auth_router)
 
 
-@app.post("/run-migration")
-def run_migration():
-    alembic_cfg = Config("alembic.ini")
-    command.upgrade(alembic_cfg, "head")
-    return {"status": "migrated"}
-
-
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # CORS (allow all for dev)
