@@ -21,14 +21,20 @@ class LoginRequest(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
-    name: Optional[str] = None
+    password_confirm: str
+    name: str
 
 
 @router.post("/register")
 @limiter.limit("5/minute")
 async def register(request: Request, payload: RegisterRequest, db: Session = Depends(get_db)):
+    # check password confirmation
+    if payload.password != payload.password_confirm:
+        raise HTTPException(status_code=400, detail="Passwords do not match")
+
+    # register the user as usual
     register_user(db, payload.email, payload.password, name=payload.name)
     return {"message": "User registered successfully"}
 
