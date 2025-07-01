@@ -23,8 +23,8 @@ class User(Base):
 
     id = Column(Integer, primary_key=True)
     email = Column(String, unique=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
-    name = Column(String, nullable=True)
+    hashed_password = Column(String, nullable=False)  # this matches the table
+    name = Column(String, nullable=False)
 
     files = relationship("UserFile", back_populates="user")
 

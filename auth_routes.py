@@ -44,7 +44,9 @@ async def login(request: Request, response: Response, payload: LoginRequest, db:
 
     return {
         "access_token": access_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        # <-- ADD THIS LINE
+        "display_name": user.name or user.email.split('@')[0]
     }
 
 
