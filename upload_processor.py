@@ -75,14 +75,15 @@ def process_transcript_for_pinecone(s3_bucket: str, s3_key: str):
         to_upsert.append((str(uuid4()), embedding, metadata))
 
     if to_upsert:
-    try:
-        index.upsert(vectors=to_upsert)
-        print(f"✅ Uploaded {len(to_upsert)} vectors to Pinecone for {s3_key}.")
-    except Exception as e:
-        print(f"❌ Pinecone upsert failed: {e}")
-
+        try:
+            index.upsert(vectors=to_upsert)
+            print(
+                f"✅ Uploaded {len(to_upsert)} vectors to Pinecone for {s3_key}.")
+        except Exception as e:
+            print(f"❌ Pinecone upsert failed: {e}")
 
 # --- Main Audio Transcription Function (Optimized for S3) ---
+
 
 async def transcribe_audio(file_path: str, filename: str) -> tuple[str, list[dict], str, str, str]:
     """
