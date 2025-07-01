@@ -57,16 +57,17 @@ async def upload_file(file: UploadFile = File(...), user=Depends(get_current_use
     try:
         extension = os.path.splitext(file.filename)[1]
         unique_name = f"{uuid.uuid4().hex}{extension}"
-        # Create a temporary local path for processing
         local_temp_path = os.path.join("uploads", unique_name)
-        os.makedirs("uploads", exist_ok=True)  # Ensure the directory exists
+        os.makedirs("uploads", exist_ok=True)
 
         async with aiofiles.open(local_temp_path, "wb") as out_file:
             content = await file.read()
             await out_file.write(content)
 
-        # transcribe_audio saves transcript and segments to S3 and returns URLs
-        _, _, audio_url, transcript_url, _ = await transcribe_audio(local_temp_path, unique_name)
+        # run transcription
+        _, _, audio_url, transcript_url, _ = await transcribe_audio(
+            local_temp_path, unique_name
+        )
 
         # Clean up local temp file after processing
         os.remove(local_temp_path)
@@ -102,7 +103,6 @@ async def upload_file(file: UploadFile = File(...), user=Depends(get_current_use
 except Exception:
     import traceback
     print("❌ Upload failed:\n", traceback.format_exc())
-    db.rollback()  # be safe
     raise HTTPException(
         status_code=500,
         detail="Upload failed. Check server logs for details."
