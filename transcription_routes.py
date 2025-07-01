@@ -100,13 +100,13 @@ async def upload_file(file: UploadFile = File(...), user=Depends(get_current_use
             }
         )
 
-except Exception:
-    import traceback
-    print("❌ Upload failed:\n", traceback.format_exc())
-    raise HTTPException(
-        status_code=500,
-        detail="Upload failed. Check server logs for details."
-    )
+    except Exception:
+        import traceback
+        print("❌ Upload failed:\n", traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail="Upload failed. Check server logs for details."
+        )
 
 
 @router.get("/api/transcripts", response_model=List[Dict[str, Any]])
