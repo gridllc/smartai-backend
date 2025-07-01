@@ -1,21 +1,28 @@
-import os
-import subprocess
-import json
-from uuid import uuid4
-from dotenv import load_dotenv
-from pinecone import Pinecone
-from openai import OpenAI
-import whisper
-import boto3
+import pinecone
+from config import settings
 from botocore.exceptions import ClientError
-from config import settings  # Assuming you have a config.py for settings
+import boto3
+import whisper
+from openai import OpenAI
+from uuid import uuid4
+import json
+import subprocess
+import os
+from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv()   # <-- run dotenv ASAP
+
 
 # --- Initialize Clients ---
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-index = pc.Index("smartai-transcripts")
+# Initialize Pinecone
+pinecone.init(
+    api_key=os.getenv("PINECONE_API_KEY"),
+    # e.g. "us-west1-gcp" or similar
+    environment=os.getenv("PINECONE_ENVIRONMENT"),
+)
+
+index = pinecone.Index("smartai-transcripts")
 s3 = boto3.client("s3", region_name=settings.aws_region)
 
 EMBED_MODEL = "text-embedding-3-small"
@@ -68,9 +75,11 @@ def process_transcript_for_pinecone(s3_bucket: str, s3_key: str):
         to_upsert.append((str(uuid4()), embedding, metadata))
 
     if to_upsert:
+    try:
         index.upsert(vectors=to_upsert)
-        print(
-            f"\u2705 Uploaded {len(to_upsert)} vectors to Pinecone for {s3_key}.")
+        print(f"✅ Uploaded {len(to_upsert)} vectors to Pinecone for {s3_key}.")
+    except Exception as e:
+        print(f"❌ Pinecone upsert failed: {e}")
 
 
 # --- Main Audio Transcription Function (Optimized for S3) ---
