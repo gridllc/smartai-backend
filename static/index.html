@@ -285,7 +285,7 @@
         </div>
         <div class="profile-overlay" id="profileOverlay"></div>
         <div class="profile-box" id="profileBox">...</div>
-        <div id="loginBox" style="display: none;">
+        <div id="loginBox" class="auth-container" style="display: none;">
             <h3>Login</h3>
             <input type="email" id="loginEmail" placeholder="Email" /><br><br>
             <input type="password" id="loginPassword" placeholder="Password" /><br><br>
@@ -299,13 +299,14 @@
             <button id="resetPasswordBtn">Send Reset Email</button>
             <p><a href="#" id="backToLoginFromReset">Back to Login</a></p>
         </div>
-        <div id="registerBox" style="display:none;">
+        <div id="registerBox" class="auth-container" style="display:none;">
             <h3>Register</h3>
             <input type="text" id="registerName" placeholder="Full Name" /><br><br>
             <input type="email" id="registerEmail" placeholder="Email" /><br><br>
             <input type="password" id="registerPassword" placeholder="Password" /><br><br>
             <input type="password" id="registerPasswordConfirm" placeholder="Confirm Password" /><br><br>
-            <input type="text" id="registerCode" placeholder="Invite Code (if required)" /><br><br>
+            <input type="checkbox" id="showRegisterPassword"> Show Password<br><br>
+            <input type="checkbox" id="showLoginPassword"> Show Password
             <button id="registerBtn">Create Account</button>
             <p><a href="#" id="backToLoginFromRegister">Back to Login</a></p>
         </div>

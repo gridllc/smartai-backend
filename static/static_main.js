@@ -388,3 +388,15 @@ window.onload = async () => {
         if (e.ctrlKey && e.key.toLowerCase() === 'd') { e.preventDefault(); toggleDarkMode(); }
     });
 };
+
+// Toggle password visibility for login
+
+document.getElementById('showLoginPassword').addEventListener('change', e => {
+    document.getElementById('loginPassword').type = e.target.checked ? "text" : "password";
+});
+
+// Toggle password visibility for register
+document.getElementById('showRegisterPassword').addEventListener('change', e => {
+    document.getElementById('registerPassword').type = e.target.checked ? "text" : "password";
+    document.getElementById('registerPasswordConfirm').type = e.target.checked ? "text" : "password";
+}); 

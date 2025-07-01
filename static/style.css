@@ -62,7 +62,7 @@ button.preview-btn {
     border-top: 4px solid #555;
     border-radius: 50%;
     animation: spin 1s linear infinite;
-    vertical-align: middle; 
+    vertical-align: middle;
 }
 
 
@@ -81,4 +81,43 @@ button.preview-btn {
 
 .toast.show {
     opacity: 1;
+}
+
+/* make the login/register box centered and visually distinct */
+.auth-container {
+    max-width: 400px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* slightly bigger and modern fonts */
+.auth-container input[type="text"],
+.auth-container input[type="email"],
+.auth-container input[type="password"] {
+    font-size: 1rem;
+    padding: 0.75rem;
+    width: 100%;
+    margin-bottom: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* bigger button for accessibility */
+.auth-container button {
+    font-size: 1rem;
+    padding: 0.75rem;
+    width: 100%;
+    background-color: #0077c8;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* add a subtle hover style */
+.auth-container button:hover {
+    background-color: #005fa3;
 }
