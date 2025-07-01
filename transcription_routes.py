@@ -75,24 +75,38 @@ async def upload_file(file: UploadFile = File(...), user=Depends(get_current_use
             filename=unique_name,
             file_size=len(content),
             upload_timestamp=datetime.utcnow(),
-            user_id=user.id,                 # correctly link the user
+            user_id=user.id,
             audio_url=audio_url,
             transcript_url=transcript_url
         )
 
         db.add(new_file)
+        db.flush()  # forces insert to catch errors *before* commit
         db.commit()
         db.refresh(new_file)
 
-        return JSONResponse(status_code=200, content={
-            "message": "File uploaded and transcribed", "filename": unique_name,
-            "audio_url": audio_url, "transcript_url": transcript_url
-        })
-    except Exception:
-        import traceback
-        print("❌ Upload failed:\n", traceback.format_exc())
-        raise HTTPException(
-            status_code=500, detail="Upload failed. Check server logs for details.")
+        print(
+            f"✅ Committed UserFile: id={new_file.id}, user_id={user.id}, filename={unique_name}"
+        )
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "message": "File uploaded and transcribed successfully",
+                "filename": unique_name,
+                "audio_url": audio_url,
+                "transcript_url": transcript_url
+            }
+        )
+
+except Exception:
+    import traceback
+    print("❌ Upload failed:\n", traceback.format_exc())
+    db.rollback()  # be safe
+    raise HTTPException(
+        status_code=500,
+        detail="Upload failed. Check server logs for details."
+    )
 
 
 @router.get("/api/transcripts", response_model=List[Dict[str, Any]])
