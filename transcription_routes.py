@@ -72,9 +72,14 @@ async def upload_file(file: UploadFile = File(...), user=Depends(get_current_use
         os.remove(local_temp_path)
 
         new_file = UserFile(
-            email=user.email, filename=unique_name, file_size=len(content),
-            upload_timestamp=datetime.utcnow(), audio_url=audio_url, transcript_url=transcript_url
+            filename=unique_name,
+            file_size=len(content),
+            upload_timestamp=datetime.utcnow(),
+            user_id=user.id,                 # correctly link the user
+            audio_url=audio_url,
+            transcript_url=transcript_url
         )
+
         db.add(new_file)
         db.commit()
         db.refresh(new_file)
