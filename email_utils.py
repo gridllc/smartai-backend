@@ -5,10 +5,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-EMAIL_USER = settings.email_username
-EMAIL_PASS = settings.email_password
-SMTP_SERVER = settings.smtp_server
-SMTP_PORT = settings.smtp_port
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASS = os.getenv("EMAIL_PASSWORD")
+SMTP_SERVER = os.getenv("SMTP_SERVER")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 
 
 def send_email_with_attachment(to_email, subject, body, file_path=None):

@@ -5,6 +5,7 @@ from datetime import datetime
 
 Base = declarative_base()
 
+
 class ActivityLog(Base):
     __tablename__ = "activity"
 
@@ -26,6 +27,7 @@ class User(Base):
     name = Column(String, nullable=True)
 
     files = relationship("UserFile", back_populates="user")
+
 
 class QAHistory(Base):
     __tablename__ = "qa_history"

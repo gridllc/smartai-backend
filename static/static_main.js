@@ -61,8 +61,8 @@ function register() {
         password = document.getElementById("registerPassword").value,
         passwordConfirm = document.getElementById("registerPasswordConfirm").value;
 
-    if (!email || !password || !passwordConfirm)
-        return showToast("Please enter all fields.", "error");
+    if (!name || !email || !password || !passwordConfirm)
+        return showToast("Please fill out all required fields.", "error");
 
     if (password !== passwordConfirm)
         return showToast("Passwords do not match.", "error");
@@ -77,16 +77,29 @@ function register() {
             password_confirm: passwordConfirm
         })
     })
-        .then((res) => res.json())
-        .then((data) => {
-            if (data.message) {
-                showToast(data.message, "success");
-                window.location.href = "/"; // or wherever you redirect
-            } else {
-                showToast("Registration failed.", "error");
-            }
+        .then(res => {
+            // This is a robust way to handle JSON responses for both success and error cases.
+            return res.json().then(data => {
+                if (!res.ok) {
+                    // If the response is not OK (e.g., status 400), we throw an error.
+                    // The error message will be the 'detail' field from the backend's JSON response.
+                    throw new Error(data.detail || 'An unknown error occurred during registration.');
+                }
+                // If the response is OK, we return the data for the next .then() block.
+                return data;
+            });
         })
-        .catch(() => showToast("Network error.", "error"));
+        .then(data => {
+            // This block only executes for a successful registration.
+            showToast(data.message || "Registration successful! Please log in.", "success");
+            // Directly show the login form for a better user experience.
+            showLogin();
+        })
+        .catch(error => {
+            // This block catches both network errors and the specific error we threw above.
+            // It will now display the helpful error message from the backend.
+            showToast(`Registration failed: ${error.message}`, "error");
+        });
 }
 
 function logout() { localStorage.clear(); fetch("/auth/logout", { method: "POST", credentials: "include" }).finally(() => window.location.reload()); }

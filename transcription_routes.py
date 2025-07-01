@@ -90,7 +90,6 @@ async def upload_file(file: UploadFile = File(...), user=Depends(get_current_use
             status_code=500, detail="Upload failed. Check server logs for details.")
 
 
-
 @router.get("/api/transcripts", response_model=List[Dict[str, Any]])
 async def get_transcript_list(user=Depends(get_current_user), db: Session = Depends(get_db)):
     files = db.query(UserFile).filter(UserFile.user_id == user.id).order_by(
@@ -106,6 +105,7 @@ async def get_transcript_list(user=Depends(get_current_user), db: Session = Depe
         }
         for f in files
     ]
+
 
 @router.get("/api/transcript/{filename:path}")
 def get_transcript_from_s3(filename: str, user=Depends(get_current_user)):
