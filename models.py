@@ -26,6 +26,8 @@ class User(Base):
     hashed_password = Column(String, nullable=False)  # this matches the table
     name = Column(String, nullable=False)
 
+    role = Column(String(20), nullable=False, default="owner")  # ADD THIS
+
     files = relationship("UserFile", back_populates="user")
 
 

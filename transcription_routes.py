@@ -54,6 +54,10 @@ class EditQuizInput(BaseModel):
 
 @router.post("/api/upload")
 async def upload_file(file: UploadFile = File(...), user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role != "owner":
+        raise HTTPException(
+            status_code=403, detail="Only owners can upload training videos.")
+
     try:
         extension = os.path.splitext(file.filename)[1]
         unique_name = f"{uuid.uuid4().hex}{extension}"
@@ -286,6 +290,10 @@ def delete_quiz_question(filename: str, timestamp: float, user=Depends(get_curre
 
 @router.post("/api/transcript/{filename:path}/note")
 def save_note(filename: str, input_data: NoteInput, user=Depends(get_current_user)):
+    if user.role != "owner":
+        raise HTTPException(
+            status_code=403, detail="Only owners can edit notes/tags.")
+
     """Saves a note for a transcript to a JSON file in S3."""
     base_name = os.path.splitext(os.path.basename(filename))[0]
     s3_key = f"transcripts/{base_name}_note.json"
@@ -312,6 +320,10 @@ def get_note(filename: str, user=Depends(get_current_user)):
 
 @router.post("/api/transcript/{filename:path}/tag")
 def save_tag(filename: str, input_data: TagInput, user=Depends(get_current_user)):
+    if user.role != "owner":
+        raise HTTPException(
+            status_code=403, detail="Only owners can edit notes/tags.")
+
     """Saves a tag for a transcript to a JSON file in S3."""
     base_name = os.path.splitext(os.path.basename(filename))[0]
     s3_key = f"transcripts/{base_name}_tag.json"
@@ -340,6 +352,10 @@ def get_tag(filename: str, user=Depends(get_current_user)):
 
 @router.post("/api/transcript/{filename:path}/segments")
 async def save_segments(filename: str, data: dict, user=Depends(get_current_user)):
+    if user.role != "owner":
+        raise HTTPException(
+            status_code=403, detail="Only owners can edit transcript segments.")
+
     """Updates the segments JSON file in S3."""
     base_name = os.path.splitext(os.path.basename(filename))[0]
     s3_key = f"transcripts/{base_name}.json"

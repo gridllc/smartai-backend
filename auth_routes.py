@@ -17,14 +17,35 @@ limiter = Limiter(key_func=get_remote_address)
 
 @router.post("/register")
 @limiter.limit("5/minute")
-async def register(request: Request, payload: RegisterRequest, db: Session = Depends(get_db)):
-    # check password confirmation
+async def register(
+    request: Request,
+    payload: RegisterRequest,
+    db: Session = Depends(get_db)
+):
+    # password check
     if payload.password != payload.password_confirm:
         raise HTTPException(status_code=400, detail="Passwords do not match")
 
-    # register the user as usual
-    register_user(db, payload.email, payload.password, name=payload.name)
-    return {"message": "User registered successfully"}
+    # get invite from query params
+    invite_code = request.query_params.get("invite")
+    role = "owner"
+
+    if invite_code:
+        invite = db.query(Invite).filter_by(
+            code=invite_code, used=False).first()
+        if invite:
+            role = "employee"
+            invite.used = True
+            db.commit()
+        else:
+            raise HTTPException(
+                status_code=400, detail="Invalid or expired invite code")
+
+    # register user
+    register_user(db, payload.email, payload.password,
+                  name=payload.name, role=role)
+
+    return {"message": f"User registered successfully with role {role}"}
 
 
 @router.post("/login")
@@ -70,6 +91,26 @@ def refresh_token(response: Response, refresh_token: Optional[str] = Cookie(None
         }
     except HTTPException:
         raise
+
+
+@router.post("/invite")
+def create_invite(
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if user.role != "owner":
+        raise HTTPException(
+            status_code=403, detail="Only owners can invite employees.")
+
+    import secrets
+    code = secrets.token_urlsafe(8)
+
+    invite = Invite(code=code, owner_id=user.id)
+    db.add(invite)
+    db.commit()
+
+    invite_link = f"https://myapp.com/register?invite={code}"
+    return {"invite_link": invite_link}
 
 
 @router.post("/logout")

@@ -69,7 +69,7 @@ def authenticate_user(db: Session, email: str, password: str) -> User:
     return user
 
 
-def register_user(db: Session, email: str, password: str, name: Optional[str] = None) -> User:
+def register_user(db: Session, email: str, password: str, name: Optional[str] = None, role: str = "owner") -> User:
     existing = db.query(User).filter(User.email == email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -77,7 +77,8 @@ def register_user(db: Session, email: str, password: str, name: Optional[str] = 
     user = User(
         name=name or email.split("@")[0],
         email=email,
-        hashed_password=get_password_hash(password)
+        hashed_password=get_password_hash(password),
+        role=role
     )
     db.add(user)
     db.commit()
