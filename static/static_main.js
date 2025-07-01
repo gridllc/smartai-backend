@@ -47,12 +47,40 @@ function toggleAnalytics() { showToast("Analytics not implemented yet.", "info")
 
 // --- AUTH & USER ---
 function login() {
-    const email = document.getElementById("loginEmail").value, password = document.getElementById("loginPassword").value;
-    if (!email || !password) return showToast("Please enter email and password.", "error");
-    fetch("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ email, password }) })
-        .then(res => res.ok ? res.json() : Promise.reject(res.json()))
-        .then(data => { localStorage.setItem("accessToken", data.access_token); localStorage.setItem("userEmail", email); localStorage.setItem("displayName", data.display_name || email.split('@')[0]); window.location.reload(); })
-        .catch(err => err.then(e => showToast(`Login failed: ${e.detail}`, "error")));
+    const email = document.getElementById("loginEmail").value;
+    const password = document.getElementById("loginPassword").value;
+
+    if (!email || !password) {
+        return showToast("Please enter email and password.", "error");
+    }
+
+    fetch("/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password })
+    })
+        .then(res => {
+            if (!res.ok) {
+                // This will handle 401 Unauthorized, etc.
+                return res.json().then(errorData => {
+                    // Throw an error with the specific message from the backend
+                    throw new Error(errorData.detail || "Invalid credentials or server error.");
+                });
+            }
+            return res.json();
+        })
+        .then(data => {
+            localStorage.setItem("accessToken", data.access_token);
+            localStorage.setItem("userEmail", email);
+            // Now 'display_name' will be correctly populated from the improved backend
+            localStorage.setItem("displayName", data.display_name || email.split('@')[0]);
+            window.location.reload();
+        })
+        .catch(error => {
+            // This single catch block now handles network errors and our thrown errors
+            showToast(`Login failed: ${error.message}`, "error");
+        });
 }
 
 function register() {
