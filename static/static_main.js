@@ -164,7 +164,10 @@ async function loadHistory() {
     try {
         const res = await fetchWithRefresh("/api/transcripts");
         if (!res.ok) throw new Error("Failed to load history");
-        allTranscripts = (await res.json()).files || [];
+
+        // FIX: The backend returns an array directly, not an object with a .files property.
+        allTranscripts = await res.json();
+
         filterTranscripts();
     } catch (err) { showToast(err.message, "error"); }
 }
