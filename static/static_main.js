@@ -12,7 +12,7 @@ async function fetchWithRefresh(url, options = {}, attempt = 0) {
     const res = await fetch(url, options);
     if (res.status === 401 && attempt === 0) {
         try {
-            const refreshRes = await fetch("/auth/refresh-token", { method: "POST", credentials: "include" });
+            const refreshRes = await fetch("/api/auth/refresh-token", { method: "POST", credentials: "include" });
             if (!refreshRes.ok) throw new Error("Session expired.");
             const data = await refreshRes.json();
             localStorage.setItem("accessToken", data.access_token);
@@ -27,7 +27,7 @@ async function fetchWithRefresh(url, options = {}, attempt = 0) {
 
 async function tryRefreshToken() {
     try {
-        const refreshRes = await fetch("/auth/refresh-token", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" } });
+        const refreshRes = await fetch("/api/auth/refresh-token", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" } });
         if (!refreshRes.ok) return false;
         const data = await refreshRes.json();
         localStorage.setItem("accessToken", data.access_token);
@@ -54,7 +54,7 @@ function login() {
         return showToast("Please enter email and password.", "error");
     }
 
-    fetch("/auth/login", {
+    fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -95,7 +95,7 @@ function register() {
     if (password !== passwordConfirm)
         return showToast("Passwords do not match.", "error");
 
-    fetch("/auth/register", {
+    fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -130,7 +130,7 @@ function register() {
         });
 }
 
-function logout() { localStorage.clear(); fetch("/auth/logout", { method: "POST", credentials: "include" }).finally(() => window.location.reload()); }
+function logout() { localStorage.clear(); fetch("/api/auth/logout", { method: "POST", credentials: "include" }).finally(() => window.location.reload()); }
 function showRegister() { document.getElementById("loginBox").style.display = "none"; document.getElementById("registerBox").style.display = "block"; document.getElementById("resetBox").style.display = "none"; }
 function showReset() { document.getElementById("loginBox").style.display = "none"; document.getElementById("resetBox").style.display = "block"; document.getElementById("registerBox").style.display = "none"; }
 function resetPassword() {
@@ -149,7 +149,7 @@ async function uploadFile() {
     const formData = new FormData(); formData.append("file", fileInput.files[0]);
     uploadBtn.disabled = true; uploadBtn.textContent = "Uploading..."; document.getElementById("spinner").style.display = "inline-block";
     try {
-        const res = await fetchWithRefresh("/api/upload", { method: "POST", body: formData });
+        const res = await fetchWithRefresh("/api/transcription/upload", { method: "POST", body: formData });
         if (!res.ok) throw new Error((await res.json()).detail || "Upload failed");
         const result = await res.json();
         showToast("Upload successful: " + result.filename, "success");
@@ -162,7 +162,7 @@ async function uploadFile() {
 }
 async function loadHistory() {
     try {
-        const res = await fetchWithRefresh("/api/transcripts");
+        const res = await fetchWithRefresh("/api/transcription/transcripts");
         if (!res.ok) throw new Error("Failed to load history");
 
         // FIX: The backend returns an array directly, not an object with a .files property.
@@ -193,7 +193,7 @@ function renderTranscriptItem(item, container) {
 }
 async function updateTag(filename, tag) {
     try {
-        const res = await fetchWithRefresh(`/api/transcript/${filename}/tag`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tag }) });
+        const res = await fetchWithRefresh(`/api/transcription/transcript/${filename}/tag`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tag }) });
         if (!res.ok) throw new Error("Failed to update tag");
         showToast("Tag saved!", "success"); loadHistory();
     } catch (err) { showToast("Error updating tag: " + err.message, "error"); }
@@ -227,7 +227,7 @@ function closeDeleteModal() { document.getElementById('confirmDeleteModal').styl
 async function confirmDelete() { if (pendingDeleteFilename) await deleteTranscript(pendingDeleteFilename); closeDeleteModal(); }
 async function deleteTranscript(filename) {
     try {
-        const res = await fetchWithRefresh(`/api/delete/${filename}`, { method: "DELETE" });
+        const res = await fetchWithRefresh(`/api/transcription/delete/${filename}`, { method: "DELETE" });
         if (!res.ok) throw new Error("Delete failed");
         showToast(`${filename} deleted.`, "info"); loadHistory(); closeTranscriptDetail();
     } catch (err) { showToast("Delete error: " + err.message, "error"); }
@@ -243,7 +243,7 @@ async function loadTranscriptForDetailView(filename) {
     panel.style.display = "block"; document.getElementById("transcriptDetailFilename").innerText = filename;
     previewBox.innerHTML = "<em>Loading...</em>"; noteTextarea.value = ""; noteTextarea.dataset.filename = filename; audioPlayer.style.display = 'none'; document.getElementById("lastSavedTime").innerText = "";
     try {
-        const [transcriptRes, noteRes, audioRes] = await Promise.all([fetchWithRefresh(`/api/transcript/${filename}`), fetchWithRefresh(`/api/transcript/${filename}/note`), fetchWithRefresh(`/audio/${filename}`)]);
+        const [transcriptRes, noteRes, audioRes] = await Promise.all([fetchWithRefresh(`/api/transcription/transcript/${filename}`), fetchWithRefresh(`/api/transcript/${filename}/note`), fetchWithRefresh(`/audio/${filename}`)]);
         if (!transcriptRes.ok) throw new Error("Transcript load failed");
         const transcriptData = await transcriptRes.json();
         previewBox.innerHTML = "";
@@ -289,7 +289,7 @@ async function saveEditedSegments() {
     const filename = document.getElementById("noteInput").dataset.filename;
     const textareas = document.querySelectorAll('#transcriptPreviewBox .segment-editor');
     // We need to re-fetch original segments to get timestamps as they are lost in edit mode
-    const transcriptRes = await fetchWithRefresh(`/api/transcript/${filename}`);
+    const transcriptRes = await fetchWithRefresh(`/api/transcription/transcript/${filename}`);
     const originalData = await transcriptRes.json();
     const originalSegments = originalData.segments || [];
 
@@ -305,7 +305,7 @@ async function saveEditedSegments() {
     }));
 
     try {
-        const res = await fetchWithRefresh(`/api/transcript/${filename}/segments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ segments: updatedSegments }) });
+        const res = await fetchWithRefresh(`/api/transcription/transcript/${filename}/segments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ segments: updatedSegments }) });
         if (!res.ok) throw new Error("Failed to save segments");
         document.getElementById("lastSavedTime").innerText = `Last saved: ${new Date().toLocaleTimeString()}`;
     } catch (err) { showToast("Error saving segments: " + err.message, "error"); throw err; }
@@ -314,7 +314,7 @@ async function saveNote() {
     const textarea = document.getElementById("noteInput"), note = textarea.value, filename = textarea.dataset.filename;
     if (!filename) return;
     try {
-        const res = await fetchWithRefresh(`/api/transcript/${filename}/note`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ note }) });
+        const res = await fetchWithRefresh(`/api/transcription/transcript/${filename}/note`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ note }) });
         if (!res.ok) throw new Error("Note save failed");
         document.getElementById("lastSavedTime").innerText = `Last saved: ${new Date().toLocaleTimeString()}`;
     } catch (err) { showToast("Note save error: " + err.message, "error"); throw err; }

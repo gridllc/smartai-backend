@@ -24,5 +24,5 @@ COPY . .
 # Expose the app port
 EXPOSE 10000
 
-# Run the FastAPI app using uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
+
+CMD ["sh", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 10000"]

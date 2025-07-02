@@ -2,17 +2,13 @@ import os
 import logging
 import subprocess
 
-from fastapi import FastAPI, Depends, HTTPException, Request, Body
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from sqlalchemy.orm import Session
 
-# Local Imports
-from auth import get_current_user
-from database import get_db
-from models import UserFile
+from config import settings
 from auth_routes import router as auth_router
 from qa_handler import router as qa_router
 from transcription_routes import router as transcription_router
@@ -20,38 +16,35 @@ from transcription_routes import router as transcription_router
 # --- Load Environment Variables ---
 load_dotenv()
 
-print("CONNECTED TO DB:", os.getenv("DATABASE_URL"))
-
-# router = APIRouter() # We will not use a separate router for this file
-
+# --- Initialize FastAPI App ---
 app = FastAPI()
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
-app.include_router(transcription_router,
-                   prefix="/transcription", tags=["transcription"])
-app.include_router(qa_router, prefix="/qa", tags=["qa"])
 
-# CORS (allow all for dev)
+# --- CORS Middleware ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",  # dev
-        "https://smartai-pg.onrender.com",  # production
+        "http://localhost:5173",
+        "https://smartai-pg.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Ensure upload and transcripts directories exist
+# --- Ensure Directories Exist (for local temp files) ---
 os.makedirs("uploads", exist_ok=True)
-os.makedirs("transcripts", exist_ok=True)
-os.makedirs("segments", exist_ok=True)
 
-# Mount static files
+# --- Mount Static Files ---
 app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-app.mount("/transcripts", StaticFiles(directory="transcripts"),
-          name="transcripts")
+
+# --- Include Routers ---
+# Note: The prefixes here are important. They were inconsistent in your original files.
+# The routes in transcription_routes.py already have "/api" in their path.
+app.include_router(auth_router)
+app.include_router(transcription_router)
+app.include_router(qa_router)
+
+# --- Root and Utility Endpoints ---
 
 
 @app.get("/", include_in_schema=False)
@@ -74,22 +67,9 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "An internal server error occurred."}
     )
 
-
-@app.post("/reset-password")
-def reset_password(data: dict = Body(...)):
-    email = data.get("email")
-    if not email:
-        raise HTTPException(status_code=400, detail="Email required")
-
-    # (You can simulate or implement email sending here)
-    print(f"Reset link sent to: {email}")
-
-    return {"message": "Reset instructions sent"}
-
-# Alembic migration trigger (optional, for one-click migration)
-
-
 # --- Optional: Alembic Migrations ---
+
+
 @app.post("/run-migrations", include_in_schema=False)
 def run_migrations():
     try:

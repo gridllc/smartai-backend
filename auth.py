@@ -110,8 +110,12 @@ def get_current_user(
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
+        # ✅ Add this:
+        print("USERS TABLE CHECK:")
+        for u in db.query(User).all():
+            print(u.email, u.role)
+
         return user
     except JWTError:
         raise HTTPException(status_code=403, detail="Invalid or expired token")
-
     # router = APIRouter() is already defined above
