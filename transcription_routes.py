@@ -3,6 +3,7 @@ import os
 import io
 import json
 import uuid
+import logging
 from datetime import datetime
 from zipfile import ZipFile
 
@@ -26,6 +27,17 @@ from models import UserFile, User
 
 router = APIRouter()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # or DEBUG if you want more detail
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
 # --- Reusable S3 client for all routes ---
 s3 = boto3.client("s3", region_name=settings.aws_region)
 
@@ -159,7 +171,7 @@ def get_transcript_from_s3(filename: str, user=Depends(get_current_user)):
 async def delete_transcript(filename: str, user=Depends(get_current_user), db: Session = Depends(get_db)):
     """Deletes a file record from DB and all associated files from S3."""
     db_obj = db.query(UserFile).filter(UserFile.filename ==
-                                       filename, UserFile.email == user.email).first()
+                                       filename, UserFile.user_id == user.id).first()
     if not db_obj:
         raise HTTPException(
             status_code=404, detail="File record not found in database.")
@@ -179,7 +191,7 @@ async def delete_transcript(filename: str, user=Depends(get_current_user), db: S
                           'Objects': objects_to_delete, 'Quiet': True})
         return {"message": f"Successfully deleted {filename} and all associated data."}
     except Exception as e:
-        print(f"Error deleting files from S3 for {filename}: {e}")
+        logger.error(f"Error deleting files from S3 for {filename}: {e}")
         raise HTTPException(
             status_code=500, detail="Failed to delete all files from S3, but DB record was removed.")
 
@@ -432,7 +444,7 @@ async def get_shared_transcript(filename: str) -> Dict[str, str]:
 async def download_all_transcripts(user=Depends(get_current_user), db: Session = Depends(get_db)):
     """Downloads all of a user's transcripts from S3 into a single ZIP file."""
     memory_file = io.BytesIO()
-    user_files = db.query(UserFile).filter(UserFile.email == user.email).all()
+    user_files = db.query(UserFile).filter(UserFile.user_id == user.id).all()
 
     with ZipFile(memory_file, 'w') as zipf:
         for file in user_files:
