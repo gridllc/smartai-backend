@@ -25,10 +25,11 @@ print("CONNECTED TO DB:", os.getenv("DATABASE_URL"))
 # router = APIRouter() # We will not use a separate router for this file
 
 app = FastAPI()
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
+# CORRECTED: Add "/api" to the start of each prefix
+app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(transcription_router,
-                   prefix="/transcription", tags=["transcription"])
-app.include_router(qa_router, prefix="/qa", tags=["qa"])
+                   prefix="/api/transcription", tags=["Transcription"])
+app.include_router(qa_router, prefix="/api/qa", tags=["Q&A"])
 
 # CORS (allow all for dev)
 app.add_middleware(

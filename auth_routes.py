@@ -1,17 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, Cookie
-from pydantic import EmailStr
-from schemas import LoginRequest, RegisterRequest
-from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Form, Response, Cookie
 from sqlalchemy.orm import Session
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-from auth import (
-    authenticate_user, create_access_token, create_refresh_token,
-    decode_refresh_token, get_current_user, register_user
-)
-from database import get_db
+from jose import jwt, JWTError
+from datetime import timedelta
 
-router = APIRouter(prefix="/auth")
+from models import User
+from database import get_db
+# include LoginRequest since you are using Pydantic schemas for login
+from schemas import RegisterRequest, LoginRequest
+from utils import (
+    create_access_token,
+    create_refresh_token,
+    authenticate_user,
+    get_current_user,
+    verify_refresh_token,
+)
+from config import ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY, ALGORITHM
+
+router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
 
@@ -66,9 +71,15 @@ async def login(request: Request, response: Response, payload: LoginRequest, db:
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        # <-- ADD THIS LINE
-        "display_name": user.name or user.email.split('@')[0]
+        "email": user.email,
+        "display_name": user.name or user.email.split('@')[0],
+        "role": user.role,
     }
+
+
+@router.get("/me", response_model=UserResponse)
+async def read_users_me(current_user: User = Depends(get_current_user)):
+    return current_user
 
 
 @router.post("/refresh-token")
