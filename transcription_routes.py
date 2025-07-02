@@ -52,7 +52,7 @@ class EditQuizInput(BaseModel):
 
 # --- Core File Handling & Management Routes ---
 
-@router.post("/api/upload")
+@router.post("/upload")
 async def upload_file(file: UploadFile = File(...), user=Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role != "owner":
         raise HTTPException(
@@ -113,7 +113,7 @@ async def upload_file(file: UploadFile = File(...), user=Depends(get_current_use
         )
 
 
-@router.get("/api/transcripts", response_model=List[Dict[str, Any]])
+@router.get("/transcripts", response_model=List[Dict[str, Any]])
 async def get_transcript_list(user=Depends(get_current_user), db: Session = Depends(get_db)):
     files = db.query(UserFile).filter(UserFile.user_id == user.id).order_by(
         UserFile.upload_timestamp.desc()).all()
@@ -130,7 +130,7 @@ async def get_transcript_list(user=Depends(get_current_user), db: Session = Depe
     ]
 
 
-@router.get("/api/transcript/{filename:path}")
+@router.get("/transcript/{filename:path}")
 def get_transcript_from_s3(filename: str, user=Depends(get_current_user)):
     """Gets the main transcript text and its segments JSON from S3."""
     base_name = os.path.splitext(filename)[0]
@@ -155,7 +155,7 @@ def get_transcript_from_s3(filename: str, user=Depends(get_current_user)):
     return JSONResponse(content={"transcript": text, "segments": segments})
 
 
-@router.delete("/api/delete/{filename:path}")
+@router.delete("/delete/{filename:path}")
 async def delete_transcript(filename: str, user=Depends(get_current_user), db: Session = Depends(get_db)):
     """Deletes a file record from DB and all associated files from S3."""
     db_obj = db.query(UserFile).filter(UserFile.filename ==
@@ -186,7 +186,7 @@ async def delete_transcript(filename: str, user=Depends(get_current_user), db: S
 # --- Quiz Routes (S3-based) ---
 
 
-@router.post("/api/quiz/generate")
+@router.post("/quiz/generate")
 def generate_question(input_data: SegmentInput, user=Depends(get_current_user)):
     """Generates a quiz question and appends it to the quiz file in S3."""
     try:
@@ -220,7 +220,7 @@ def generate_question(input_data: SegmentInput, user=Depends(get_current_user)):
             status_code=500, detail=f"Failed to generate question: {str(e)}")
 
 
-@router.get("/api/quiz/{filename:path}")
+@router.get("/quiz/{filename:path}")
 def get_saved_quiz(filename: str, user=Depends(get_current_user)):
     """Gets the entire quiz file from S3."""
     base_name = os.path.splitext(filename)[0]
@@ -235,7 +235,7 @@ def get_saved_quiz(filename: str, user=Depends(get_current_user)):
             status_code=500, detail="Failed to load quiz from S3")
 
 
-@router.patch("/api/quiz/{filename:path}")
+@router.patch("/quiz/{filename:path}")
 def update_quiz_question(filename: str, update: EditQuizInput, user=Depends(get_current_user)):
     """Updates a specific quiz question in S3."""
     base_name = os.path.splitext(filename)[0]
@@ -262,7 +262,7 @@ def update_quiz_question(filename: str, update: EditQuizInput, user=Depends(get_
     return {"message": "Quiz updated"}
 
 
-@router.delete("/api/quiz/{filename:path}/{timestamp}")
+@router.delete("/quiz/{filename:path}/{timestamp}")
 def delete_quiz_question(filename: str, timestamp: float, user=Depends(get_current_user)):
     """Deletes a specific quiz question from the file in S3."""
     base_name = os.path.splitext(filename)[0]
@@ -288,7 +288,7 @@ def delete_quiz_question(filename: str, timestamp: float, user=Depends(get_curre
 
 # --- Note and Tag Routes (S3-based) ---
 
-@router.post("/api/transcript/{filename:path}/note")
+@router.post("/transcript/{filename:path}/note")
 def save_note(filename: str, input_data: NoteInput, user=Depends(get_current_user)):
     if user.role != "owner":
         raise HTTPException(
@@ -303,7 +303,7 @@ def save_note(filename: str, input_data: NoteInput, user=Depends(get_current_use
     return {"message": "Note saved successfully"}
 
 
-@router.get("/api/transcript/{filename:path}/note")
+@router.get("/transcript/{filename:path}/note")
 def get_note(filename: str, user=Depends(get_current_user)):
     """Gets a note for a transcript from S3."""
     base_name = os.path.splitext(os.path.basename(filename))[0]
@@ -318,7 +318,7 @@ def get_note(filename: str, user=Depends(get_current_user)):
         return {"note": ""}
 
 
-@router.post("/api/transcript/{filename:path}/tag")
+@router.post("/transcript/{filename:path}/tag")
 def save_tag(filename: str, input_data: TagInput, user=Depends(get_current_user)):
     if user.role != "owner":
         raise HTTPException(
@@ -333,7 +333,7 @@ def save_tag(filename: str, input_data: TagInput, user=Depends(get_current_user)
     return {"message": "Tag saved successfully"}
 
 
-@router.get("/api/transcript/{filename:path}/tag")
+@router.get("/transcript/{filename:path}/tag")
 def get_tag(filename: str, user=Depends(get_current_user)):
     """Gets a tag for a transcript from S3."""
     base_name = os.path.splitext(os.path.basename(filename))[0]
@@ -350,7 +350,7 @@ def get_tag(filename: str, user=Depends(get_current_user)):
 # --- Utility and Other Routes (S3-based) ---
 
 
-@router.post("/api/transcript/{filename:path}/segments")
+@router.post("/transcript/{filename:path}/segments")
 async def save_segments(filename: str, data: dict, user=Depends(get_current_user)):
     if user.role != "owner":
         raise HTTPException(
@@ -372,7 +372,7 @@ async def save_segments(filename: str, data: dict, user=Depends(get_current_user
             status_code=500, detail=f"Failed to save segments to S3: {str(e)}")
 
 
-@router.post("/api/suggest")
+@router.post("/suggest")
 def suggest_text(data: dict, user=Depends(get_current_user)):
     """Uses OpenAI to suggest improvements for a piece of text."""
     try:
@@ -386,7 +386,7 @@ def suggest_text(data: dict, user=Depends(get_current_user)):
             status_code=500, detail=f"Suggestion failed: {str(e)}")
 
 
-@router.post("/api/transcript/{filename:path}/auto-segment")
+@router.post("/transcript/{filename:path}/auto-segment")
 def auto_segment_transcript(filename: str, user=Depends(get_current_user)):
     """Fetches a transcript from S3, uses OpenAI to segment it, and saves the new segments file to S3."""
     base_name = os.path.splitext(filename)[0]
@@ -414,7 +414,7 @@ def auto_segment_transcript(filename: str, user=Depends(get_current_user)):
             status_code=500, detail=f"AI segmentation failed: {str(e)}")
 
 
-@router.get("/api/share/{filename:path}", response_model=None)
+@router.get("/share/{filename:path}", response_model=None)
 async def get_shared_transcript(filename: str) -> Dict[str, str]:
     """Gets a transcript from S3, intended for a public-facing share link."""
     base_name = os.path.splitext(os.path.basename(filename))[0]
@@ -428,7 +428,7 @@ async def get_shared_transcript(filename: str) -> Dict[str, str]:
             status_code=404, detail="Shared transcript not found.")
 
 
-@router.get("/api/download/all")
+@router.get("/download/all")
 async def download_all_transcripts(user=Depends(get_current_user), db: Session = Depends(get_db)):
     """Downloads all of a user's transcripts from S3 into a single ZIP file."""
     memory_file = io.BytesIO()
