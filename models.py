@@ -54,3 +54,15 @@ class UserFile(Base):
     transcript_url = Column(String, nullable=True)
 
     user = relationship("User", back_populates="files")
+
+
+class Invite(Base):
+    __tablename__ = "invites"
+
+    id = Column(Integer, primary_key=True)
+    code = Column(String, unique=True, nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    used = Column(Boolean, default=False)
+
+    owner = relationship("User")

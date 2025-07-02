@@ -29,9 +29,9 @@ s3transfer==0.13.0
 
 # Pinecone
 pinecone==7.0.2
-pinecone-client==6.0.0
 pinecone-plugin-assistant==1.7.0
 pinecone-plugin-interface==0.0.7
+pinecone>=3.0.0
 
 # Whisper
 openai-whisper @ git+https://github.com/openai/whisper.git@dd985ac4b90cafeef8712f2998d62c59c3e62d22
