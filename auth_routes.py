@@ -1,61 +1,83 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Form, Response, Cookie
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, Cookie
 from sqlalchemy.orm import Session
-from jose import jwt, JWTError
-from datetime import timedelta
+from typing import Optional
+from jose import JWTError
 
-from models import User
+# --- Local Imports ---
 from database import get_db
-# include LoginRequest since you are using Pydantic schemas for login
-from schemas import RegisterRequest, LoginRequest
-from utils import (
+from models import User, Invite
+from schemas import RegisterRequest, LoginRequest, UserResponse
+from auth import (
     create_access_token,
     create_refresh_token,
     authenticate_user,
     get_current_user,
-    verify_refresh_token,
+    decode_refresh_token,
+    register_user,
 )
-from config import ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY, ALGORITHM
 
-router = APIRouter()
+# --- Rate Limiter Imports ---
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
 limiter = Limiter(key_func=get_remote_address)
+router = APIRouter()
 
 
-@router.post("/register")
+# --- REGISTER ---
+@router.post("/register", status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
-async def register(
+async def register_new_user(
     request: Request,
     payload: RegisterRequest,
     db: Session = Depends(get_db)
 ):
-    # password check
     if payload.password != payload.password_confirm:
-        raise HTTPException(status_code=400, detail="Passwords do not match")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Passwords do not match"
+        )
 
-    # get invite from query params
     invite_code = request.query_params.get("invite")
-    role = "owner"
+    role = "owner"  # default role
 
     if invite_code:
-        invite = db.query(Invite).filter_by(
-            code=invite_code, used=False).first()
+        invite = db.query(Invite).filter(
+            Invite.code == invite_code, Invite.used == False).first()
         if invite:
             role = "employee"
             invite.used = True
-            db.commit()
+            # we’ll commit after registering user so it’s atomic
         else:
             raise HTTPException(
-                status_code=400, detail="Invalid or expired invite code")
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired invite code"
+            )
 
-    # register user
-    register_user(db, payload.email, payload.password,
-                  name=payload.name, role=role)
+    new_user = register_user(
+        db,
+        email=payload.email,
+        password=payload.password,
+        name=payload.name,
+        role=role
+    )
 
-    return {"message": f"User registered successfully with role {role}"}
+    if invite_code:
+        db.commit()  # finalize the invite mark-used
+
+    return {"message": f"User '{new_user.email}' registered successfully as {role}."}
 
 
+# --- LOGIN ---
 @router.post("/login")
-async def login(request: Request, response: Response, payload: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login_for_token(
+    response: Response,
+    payload: LoginRequest,
+    db: Session = Depends(get_db)
+):
     user = authenticate_user(db, payload.email, payload.password)
+
     access_token = create_access_token(data={"sub": user.email})
     refresh_token = create_refresh_token(data={"sub": user.email})
 
@@ -63,7 +85,7 @@ async def login(request: Request, response: Response, payload: LoginRequest, db:
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True,
+        secure=True,     # best practice
         samesite="lax",
         max_age=7 * 24 * 60 * 60  # 7 days
     )
@@ -72,59 +94,81 @@ async def login(request: Request, response: Response, payload: LoginRequest, db:
         "access_token": access_token,
         "token_type": "bearer",
         "email": user.email,
-        "display_name": user.name or user.email.split('@')[0],
+        "display_name": user.name,
         "role": user.role,
     }
 
 
+# --- GET CURRENT USER ---
 @router.get("/me", response_model=UserResponse)
-async def read_users_me(current_user: User = Depends(get_current_user)):
+async def get_my_info(current_user: User = Depends(get_current_user)):
+    # response_model filters fields automatically
     return current_user
 
 
+# --- REFRESH TOKEN ---
 @router.post("/refresh-token")
-def refresh_token(response: Response, refresh_token: Optional[str] = Cookie(None)):
+@limiter.limit("10/minute")
+async def refresh_access_token(
+    response: Response,
+    refresh_token: Optional[str] = Cookie(None),
+    db: Session = Depends(get_db)
+):
     if not refresh_token:
-        raise HTTPException(status_code=401, detail="No refresh token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token missing")
 
     try:
         payload = decode_refresh_token(refresh_token)
         user_email = payload.get("sub")
         if not user_email:
             raise HTTPException(
-                status_code=401, detail="Invalid refresh payload")
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh payload")
 
-        access_token = create_access_token(data={"sub": user_email})
+        user = db.query(User).filter(User.email == user_email).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
+        new_access_token = create_access_token(data={"sub": user.email})
         return {
-            "access_token": access_token,
-            "user_email": user_email,
-            "display_name": user_email.split("@")[0]
+            "access_token": new_access_token,
+            "token_type": "bearer",
+            "email": user.email,
+            "display_name": user.name,
+            "role": user.role,
         }
-    except HTTPException:
-        raise
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Invalid or expired refresh token")
 
 
-@router.post("/invite")
-def create_invite(
-    user=Depends(get_current_user),
+# --- INVITE ---
+@router.post("/invite", status_code=status.HTTP_201_CREATED)
+async def create_new_invite(
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if user.role != "owner":
+    if current_user.role != "owner":
         raise HTTPException(
-            status_code=403, detail="Only owners can invite employees.")
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only owners can create invite links."
+        )
 
     import secrets
-    code = secrets.token_urlsafe(8)
+    code = secrets.token_urlsafe(16)
 
-    invite = Invite(code=code, owner_id=user.id)
-    db.add(invite)
+    new_invite = Invite(code=code, owner_id=current_user.id)
+    db.add(new_invite)
     db.commit()
 
-    invite_link = f"https://myapp.com/register?invite={code}"
+    invite_link = f"https://your-frontend-url.com/register?invite={code}"
+
     return {"invite_link": invite_link}
 
 
+# --- LOGOUT ---
 @router.post("/logout")
-def logout(response: Response):
+async def logout(response: Response):
     response.delete_cookie(key="refresh_token")
     return {"message": "Logout successful"}
