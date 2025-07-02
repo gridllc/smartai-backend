@@ -15,3 +15,16 @@ venv310/
 *.db
 *.log
 *.bak
+
+# Ignore these old static icons
+static/android-chrome-192x192.png
+static/android-chrome-512x512.png
+static/apple-touch-icon.png
+static/favicon-16x16.png
+
+# Ignore suggestion temp files
+suggested for main.py
+suggestion for js.js
+
+# Ignore node modules
+node_modules/
