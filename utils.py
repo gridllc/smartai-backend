@@ -1,11 +1,7 @@
 # utils.py
-
 import os
 import secrets
-import hashlib
-import sqlite3
-from datetime import datetime
-from config import settings
+from config import settings  # Assuming you have a config file
 
 
 def sanitize_filename(filename: str) -> str:

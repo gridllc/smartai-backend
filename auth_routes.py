@@ -72,6 +72,7 @@ async def register_new_user(
 @router.post("/login")
 @limiter.limit("10/minute")
 async def login_for_token(
+    request: Request,             # <-- add this
     response: Response,
     payload: LoginRequest,
     db: Session = Depends(get_db)
@@ -110,6 +111,7 @@ async def get_my_info(current_user: User = Depends(get_current_user)):
 @router.post("/refresh-token")
 @limiter.limit("10/minute")
 async def refresh_access_token(
+    request: Request,           # <--- ADD THIS
     response: Response,
     refresh_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db)
