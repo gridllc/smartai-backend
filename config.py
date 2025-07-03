@@ -30,8 +30,6 @@ class Settings(BaseSettings):
     # Admin emails
     admin_emails: List[str] = Field(default_factory=list, env="ADMIN_EMAILS")
 
-    print("DEBUG EMAIL_PASS:", settings.email_password)
-
     @validator('admin_emails', pre=True)
     def parse_admin_emails(cls, v):
         if not v:
@@ -69,3 +67,7 @@ class Settings(BaseSettings):
 
 # Create settings instance
 settings = Settings()
+
+print("DEBUG RUNTIME ENV KEYS:", list(os.environ.keys()))
+print("DEBUG SMARTAI_SMTP_PASS:", os.environ.get("SMARTAI_SMTP_PASS"))
+print("DEBUG SETTINGS.email_password:", settings.email_password)
