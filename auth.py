@@ -12,9 +12,11 @@ from passlib.exc import UnknownHashError
 from sqlalchemy.orm import Session
 from models import User
 from database import get_db
-from config import settings
+from config import Settings
 
 load_dotenv()
+
+settings = Settings()
 
 router = APIRouter()
 
