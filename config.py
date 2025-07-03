@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     email_host: str = Field(default="smtp.gmail.com", env="EMAIL_HOST")
     email_port: int = Field(default=587, env="EMAIL_PORT")
     email_username: str = Field(..., env="EMAIL_USERNAME")
-    email_password: str = Field(..., env="SMARTAI_SMTP_PASS")
+    email_password: str = os.getenv("SMARTAI_SMTP_PASS")
 
     # Admin emails
     admin_emails: List[str] = Field(default_factory=list, env="ADMIN_EMAILS")
