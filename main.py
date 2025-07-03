@@ -31,6 +31,7 @@ app.include_router(transcription_router,
                    prefix="/api/transcription", tags=["Transcription"])
 app.include_router(qa_router, prefix="/api/qa", tags=["Q&A"])
 
+
 # CORS (allow all for dev)
 app.add_middleware(
     CORSMiddleware,
