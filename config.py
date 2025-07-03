@@ -1,7 +1,6 @@
-import os
 from pydantic_settings import BaseSettings
 from pydantic import Field, validator
-from typing import List, Union
+from typing import List
 import json
 
 
@@ -12,22 +11,22 @@ class Settings(BaseSettings):
     # OpenAI
     openai_api_key: str = Field(..., env="OPENAI_API_KEY")
 
-    # AWS S3 configuration
+    # AWS
     aws_access_key_id: str = Field(..., env="AWS_ACCESS_KEY_ID")
     aws_secret_access_key: str = Field(..., env="AWS_SECRET_ACCESS_KEY")
     aws_region: str = Field(default="us-west-1", env="AWS_REGION")
     s3_bucket: str = Field(default="smartai-transcripts-pg", env="S3_BUCKET")
 
-    # JWT secret key
+    # JWT
     jwt_secret_key: str = Field(..., env="JWT_SECRET_KEY")
 
-    # Email configuration (optional)
-    email_host: str = os.getenv("EMAIL_HOST", "smtp.gmail.com")
-    email_port: int = int(os.getenv("EMAIL_PORT", 587))
-    email_username: str = os.getenv("EMAIL_USERNAME")
-    email_password: str = os.getenv("SMARTAI_SMTP_PASS")
+    # Email
+    email_host: str = Field(default="smtp.gmail.com", env="EMAIL_HOST")
+    email_port: int = Field(default=587, env="EMAIL_PORT")
+    email_username: str = Field(..., env="EMAIL_USERNAME")
+    email_password: str = Field(..., env="SMARTAI_SMTP_PASS")
 
-    # Admin emails - handle both JSON array and comma-separated string
+    # Admin emails
     admin_emails: List[str] = Field(default_factory=list, env="ADMIN_EMAILS")
 
     @validator('admin_emails', pre=True)
@@ -43,7 +42,7 @@ class Settings(BaseSettings):
             return v
         return []
 
-    # App
+        # App
     app_name: str = Field(default="Transcription Service", env="APP_NAME")
     debug: bool = Field(default=False, env="DEBUG")
 
