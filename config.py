@@ -1,4 +1,3 @@
-import os
 from pydantic_settings import BaseSettings
 from pydantic import Field, validator
 from typing import List
@@ -43,7 +42,7 @@ class Settings(BaseSettings):
             return v
         return []
 
-        # App
+    # App
     app_name: str = Field(default="Transcription Service", env="APP_NAME")
     debug: bool = Field(default=False, env="DEBUG")
 
@@ -63,11 +62,3 @@ class Settings(BaseSettings):
         "case_sensitive": False,
         "extra": "allow"
     }
-
-
-# Create settings instance
-settings = Settings()
-
-print("DEBUG RUNTIME ENV KEYS:", list(os.environ.keys()))
-print("DEBUG SMARTAI_SMTP_PASS:", os.environ.get("SMARTAI_SMTP_PASS"))
-print("DEBUG SETTINGS.email_password:", settings.email_password)

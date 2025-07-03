@@ -21,7 +21,7 @@ from fastapi import (
     FastAPI, APIRouter, UploadFile, File, Depends,
     HTTPException, Header, Request, Body
 )
-from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -31,7 +31,7 @@ from dotenv import load_dotenv
 
 # ─────────────────────────────────────────────
 # Local app imports
-from config import settings
+from config import Settings
 from database import get_db, create_tables
 from auth import get_current_user
 from auth_routes import router as auth_router
@@ -39,12 +39,16 @@ from models import UserFile, User
 from qa_handler import router as qa_router
 from transcription_routes import router as transcription_router
 from upload_processor import transcribe_audio
+
+# load .env into local dev (Render will inject separately)
 load_dotenv()
 
+# create the settings **at runtime**
+settings = Settings()
 
-# router = APIRouter() # We will not use a separate router for this file
-
+# initialize the app
 app = FastAPI()
+
 app.include_router(transcription_router)
 app.include_router(qa_router)
 app.include_router(auth_router)
