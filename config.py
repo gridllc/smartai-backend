@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     # Admin emails
     admin_emails: List[str] = Field(default_factory=list, env="ADMIN_EMAILS")
 
+    print("DEBUG EMAIL_PASS:", settings.email_password)
+
     @validator('admin_emails', pre=True)
     def parse_admin_emails(cls, v):
         if not v:
