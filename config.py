@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import BaseSettings
 from pydantic import Field, validator
 from typing import List
@@ -64,5 +65,6 @@ class Settings(BaseSettings):
     }
 
 
-# instantiate it
 settings = Settings()
+
+print("DEBUG: SMARTAI_SMTP_PASS =", os.environ.get("SMARTAI_SMTP_PASS"))
