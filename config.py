@@ -22,11 +22,10 @@ class Settings(BaseSettings):
     jwt_secret_key: str = Field(..., env="JWT_SECRET_KEY")
 
     # Email
-    email_host: str = Field(default="smtp.gmail.com", env="EMAIL_HOST")
-    email_port: int = Field(default=587, env="EMAIL_PORT")
-    email_username: str = Field(..., env="EMAIL_USERNAME")
-    email_password: Optional[str] = Field(
-        None, env="SMARTAI_SMTP_PASS")  # MAKE OPTIONAL
+    email_host: str = Field(default="smtp.gmail.com", env="SMARTAI_SMTP_HOST")
+    email_port: int = Field(default=587, env="SMARTAI_SMTP_PORT")
+    email_username: str = Field(..., env="SMARTAI_SMTP_USER")
+    email_password: Optional[str] = Field(None, env="SMARTAI_SMTP_PASS")
 
     # Admin emails
     admin_emails: List[str] = Field(default_factory=list, env="ADMIN_EMAILS")

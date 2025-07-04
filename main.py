@@ -57,16 +57,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# mount static files
-app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-app.mount("/transcripts", StaticFiles(directory="transcripts"),
-          name="transcripts")
-
 # ensure folders exist
 os.makedirs(settings.transcript_dir, exist_ok=True)
 os.makedirs("uploads", exist_ok=True)
 os.makedirs("segments", exist_ok=True)
+
+# then mount static files
+app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/transcripts", StaticFiles(directory="transcripts"),
+          name="transcripts")
 
 # register routers
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
@@ -81,6 +81,15 @@ app.include_router(qa_router, prefix="/qa", tags=["qa"])
 async def startup_event():
     create_tables()
     logging.info("Database tables created if not existing.")
+
+    # --- SMTP CONFIG DEBUGGING ---
+    print("--- SMTP Config Loaded ---")
+    print("HOST:", os.environ.get("SMTP_HOST"))
+    print("USER:", os.environ.get("SMTP_USER"))
+    # don’t print actual pass
+    print("PASS loaded:", bool(os.environ.get("SMTP_PASS")))
+    print("PORT:", os.environ.get("SMTP_PORT"))
+    print("---------------------------")
 
 # OpenAI client
 client = OpenAI(api_key=settings.openai_api_key)
