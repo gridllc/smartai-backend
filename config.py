@@ -35,8 +35,7 @@ class Settings(BaseSettings):
             return []
         if isinstance(v, str):
             try:
-                loaded = json.loads(v)
-                return loaded if isinstance(loaded, list) else [v]
+                return json.loads(v) if isinstance(json.loads(v), list) else [v]
             except json.JSONDecodeError:
                 return [email.strip() for email in v.split(',') if email.strip()]
         if isinstance(v, list):
@@ -65,5 +64,5 @@ class Settings(BaseSettings):
     }
 
 
-# instantiate settings ONCE globally
+# instantiate it
 settings = Settings()
