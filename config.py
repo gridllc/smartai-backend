@@ -1,7 +1,7 @@
 import os
 from pydantic_settings import BaseSettings
 from pydantic import Field, validator
-from typing import List
+from typing import List, Optional
 import json
 
 
@@ -25,7 +25,8 @@ class Settings(BaseSettings):
     email_host: str = Field(default="smtp.gmail.com", env="EMAIL_HOST")
     email_port: int = Field(default=587, env="EMAIL_PORT")
     email_username: str = Field(..., env="EMAIL_USERNAME")
-    email_password: str = Field(..., env="SMARTAI_SMTP_PASS")
+    email_password: Optional[str] = Field(
+        None, env="SMARTAI_SMTP_PASS")  # MAKE OPTIONAL
 
     # Admin emails
     admin_emails: List[str] = Field(default_factory=list, env="ADMIN_EMAILS")
@@ -67,4 +68,8 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-print("DEBUG: SMARTAI_SMTP_PASS =", os.environ.get("SMARTAI_SMTP_PASS"))
+# hard debug
+print("✅ DEBUG: SMARTAI_SMTP_PASS =", settings.email_password)
+
+if not settings.email_password:
+    print("⚠️  WARNING: SMARTAI_SMTP_PASS is missing at runtime. Check your environment variables on Render!")
