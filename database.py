@@ -1,4 +1,3 @@
-import models
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -50,5 +49,7 @@ def get_db():
 
 
 def create_tables():
+    # Import models here to avoid circular imports
+    import models
     # This will now correctly create all tables that have inherited from Base.
     Base.metadata.create_all(bind=engine)
