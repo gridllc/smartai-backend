@@ -68,5 +68,8 @@ settings = Settings()
 # hard debug
 print("✅ DEBUG: SMARTAI_SMTP_PASS =", settings.email_password)
 
+if not settings.email_username:
+    print("❌ ERROR: SMARTAI_SMTP_USER is missing!")
+
 if not settings.email_password:
     print("⚠️  WARNING: SMARTAI_SMTP_PASS is missing at runtime. Check your environment variables on Render!")
