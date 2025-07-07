@@ -1,5 +1,8 @@
 # Standard library imports
 import os
+if os.environ.get("RENDER") != "true":
+    from dotenv import load_dotenv
+    load_dotenv()
 import io
 import json
 import uuid
@@ -26,7 +29,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from alembic.config import Config
 from alembic import command
-from dotenv import load_dotenv
 
 # ─────────────────────────────────────────────
 # Local app imports
@@ -39,8 +41,6 @@ from qa_handler import router as qa_router
 from transcription_routes import router as transcription_router
 from upload_processor import transcribe_audio
 
-# load .env for local dev
-load_dotenv()
 
 # initialize the app
 app = FastAPI()
@@ -86,6 +86,8 @@ async def startup_event():
     print("PASS loaded:", bool(os.environ.get("SMTP_PASS")))
     print("PORT:", os.environ.get("SMTP_PORT"))
     print("---------------------------")
+    print("💡 Render sees SMARTAI_SMTP_USER as:",
+          os.environ.get("SMARTAI_SMTP_USER"))
 
 # OpenAI client
 client = OpenAI(api_key=settings.openai_api_key)
