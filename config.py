@@ -43,16 +43,14 @@ class Settings(BaseSettings):
             return v
         return []
 
-    # App
+      # App
     app_name: str = Field(default="Transcription Service", env="APP_NAME")
     debug: bool = Field(default=False, env="DEBUG")
 
     # Local file paths
-    transcript_dir: str = "transcripts"
+
     static_dir: str = "static"
-    db_path: str = "transcripts.db"
-    activity_log_path: str = "activity.log"
-    upload_dir: str = "uploads"
+
     max_file_size: int = 100_000_000
     allowed_extensions: List[str] = [
         ".wav", ".mp3", ".m4a", ".flac", ".ogg", ".mp4", ".mov", ".mkv", ".avi"

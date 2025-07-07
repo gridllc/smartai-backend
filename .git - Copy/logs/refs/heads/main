@@ -1,0 +1,156 @@
+57b5c43ea2884285050f7829060cbdeca48e023f af51e2d1f01b3aedd95e8a1c96aad429bd40a1ca gridllc <patrick@gridllc.net> 1750259194 -0700	commit: Add /api/history route
+af51e2d1f01b3aedd95e8a1c96aad429bd40a1ca 08d91a14d3242ff2a08f97e04069ec0b28b7fb52 gridllc <patrick@gridllc.net> 1750261268 -0700	commit: Fix: prevent ffmpeg from overwriting input file on video upload
+08d91a14d3242ff2a08f97e04069ec0b28b7fb52 027bf209cd992d47dd73522208773da6c14b94cf gridllc <patrick@gridllc.net> 1750263684 -0700	commit: Fix: safe ffmpeg audio extraction + add secure .gitignore
+027bf209cd992d47dd73522208773da6c14b94cf 3fc9867cbb8e607d2790cb67fc93453b7f30a13b gridllc <patrick@gridllc.net> 1750265162 -0700	commit: Fix: avoid duplicate FFmpeg conversion on .wav files
+3fc9867cbb8e607d2790cb67fc93453b7f30a13b 3bfed7fdc18e9870629883e003f2f83f21626919 gridllc <patrick@gridllc.net> 1750270658 -0700	commit: Clean slimmed version: remove FFmpeg duplicate + confirm working
+3bfed7fdc18e9870629883e003f2f83f21626919 7e275302e404848503709b410ecf0e1232a54313 gridllc <patrick@gridllc.net> 1750278961 -0700	commit: Refactor upload_processor.py with audio extraction and embedding fixes
+7e275302e404848503709b410ecf0e1232a54313 4d9dd161a289695ac22c256b09116fb452ac7274 gridllc <patrick@gridllc.net> 1750287166 -0700	commit: Restore full index.html with all enhancements
+4d9dd161a289695ac22c256b09116fb452ac7274 a43baa80d587c2846b32b1b57f1b8dde7e7380c3 gridllc <patrick@gridllc.net> 1750289185 -0700	commit: Update uploadFile with full logic and spinner
+a43baa80d587c2846b32b1b57f1b8dde7e7380c3 26c2448f98c2d87cfc3628d94129637891c8d5cf gridllc <patrick@gridllc.net> 1750294684 -0700	commit: Add password reset, download all, and admin activity log viewer
+26c2448f98c2d87cfc3628d94129637891c8d5cf ece259332765c1f2fde3a999271bf7773fe3ebf2 gridllc <patrick@gridllc.net> 1750299034 -0700	commit: Add full enhancements: GPT summary, email delivery, ZIP download, activity log, profile settings, dark mode, tags, and audio UI
+ece259332765c1f2fde3a999271bf7773fe3ebf2 5c3d7fbffa743db3174490cb6d45a475eed12921 gridllc <patrick@gridllc.net> 1750301301 -0700	commit: Finalize v1: summary storage, DB tags, profile overlay, analytics dashboard, and full UI enhancements
+5c3d7fbffa743db3174490cb6d45a475eed12921 a94563868a66d0c6b2379bb93af9175c82f26874 gridllc <patrick@gridllc.net> 1750302332 -0700	commit: Add frontend support for UUID-based share links and link copy UI
+a94563868a66d0c6b2379bb93af9175c82f26874 8f86e922c838a4891bf4e8f4c74f24c5ae232645 gridllc <patrick@gridllc.net> 1750341559 -0700	commit: Fix: Add missing utils module and ensure email support
+8f86e922c838a4891bf4e8f4c74f24c5ae232645 5fa4074de8b4f98310cb793e034615f721c6ef95 gridllc <patrick@gridllc.net> 1750344254 -0700	commit: Added GPT streaming and source snippet support to ask endpoint and frontend
+5fa4074de8b4f98310cb793e034615f721c6ef95 ccebd7330290ac0857d842eb4250d4600babceb5 gridllc <patrick@gridllc.net> 1750348568 -0700	commit: Added walkthrough mode UI, Q&A history logging, and GPT streaming with source highlights
+ccebd7330290ac0857d842eb4250d4600babceb5 0acdf9ac1d9a3d5c436ee4e17c40b2dfd542dfad gridllc <patrick@gridllc.net> 1750374586 -0700	commit: Final structure for Render deploy
+0acdf9ac1d9a3d5c436ee4e17c40b2dfd542dfad 0fee6a2cefa42b68bb031201a6b9265bc1b3e603 gridllc <patrick@gridllc.net> 1750377802 -0700	commit: Add missing email_utils module
+0fee6a2cefa42b68bb031201a6b9265bc1b3e603 e6f7912b4b1534b53e9a578af692c069c33eca1b gridllc <patrick@gridllc.net> 1750380549 -0700	commit: Final refactor: config, routes, email utils, render config
+e6f7912b4b1534b53e9a578af692c069c33eca1b 9927f67f3c8528c7650d49c7fbe69c69a6144331 gridllc <patrick@gridllc.net> 1750382218 -0700	commit: Fix: import sanitize_filename from utils
+9927f67f3c8528c7650d49c7fbe69c69a6144331 8068469adc2bb4ce9153c0f242f8a7b8920688db gridllc <patrick@gridllc.net> 1750438136 -0700	commit: Refactor: migrate to pydantic-settings, clean up constants, finalize main
+8068469adc2bb4ce9153c0f242f8a7b8920688db 8d3b3bd4048f6dd50368d1e6820be3519f245b6a gridllc <patrick@gridllc.net> 1750440469 -0700	commit: Fix BaseSettings import for Pydantic v2.11+
+8d3b3bd4048f6dd50368d1e6820be3519f245b6a dd9e503d34a02f43537074b94f6c0d8d8f702494 gridllc <patrick@gridllc.net> 1750442418 -0700	commit: fix: correct BaseSettings import from pydantic-settings
+dd9e503d34a02f43537074b94f6c0d8d8f702494 9d6be024dc76da006242a45ef33e0a132a25dbde gridllc <patrick@gridllc.net> 1750446012 -0700	commit: fix: correct BaseSettings import from pydantic-settings and in cofig.py
+9d6be024dc76da006242a45ef33e0a132a25dbde 4bd42db8fb81be9d66960b2971fc40faa43898d8 gridllc <patrick@gridllc.net> 1750448045 -0700	commit: fix: correct BaseSettings import from pydantic-settings and Admin in config.py
+4bd42db8fb81be9d66960b2971fc40faa43898d8 f0fb1c84c40b7cb259bab055007bed76a94d2e9b gridllc <patrick@gridllc.net> 1750454084 -0700	commit: fix: correct BaseSettings import from pydantic and Admin in config.py
+f0fb1c84c40b7cb259bab055007bed76a94d2e9b cdec29690d91c88dc8869c88a8460d385dd0235e gridllc <patrick@gridllc.net> 1750456754 -0700	commit: fix: correct transciption_routes and auth.py
+cdec29690d91c88dc8869c88a8460d385dd0235e fc0118a5697b2f5b00b65965456f86d7b4960153 gridllc <patrick@gridllc.net> 1750462062 -0700	commit: Main and Models
+fc0118a5697b2f5b00b65965456f86d7b4960153 324c4b2ff62c36ac8b49e5bc47a6a1e28848a920 gridllc <patrick@gridllc.net> 1750465148 -0700	commit: Extend settings with upload_dir, transcript_dir, etc.
+324c4b2ff62c36ac8b49e5bc47a6a1e28848a920 a492100ac30d4b102432bfdeb494baf9a53340a2 gridllc <patrick@gridllc.net> 1750466839 -0700	commit: Fix: Add upload_dir to Settings
+a492100ac30d4b102432bfdeb494baf9a53340a2 c92d77871685d524731bddbc2346749ac58e1801 gridllc <patrick@gridllc.net> 1750470810 -0700	commit: Fix accessToken usage and typo in Bearer header
+c92d77871685d524731bddbc2346749ac58e1801 f388d915c8669d260ba5749603a153c03f21d39c gridllc <patrick@gridllc.net> 1750525450 -0700	commit: Saved frontend enhancements and confirmed Pinecone + main.py stable
+f388d915c8669d260ba5749603a153c03f21d39c b6e3a8bded93ea9f7b49f8bb1162d9c4c6ff3659 gridllc <patrick@gridllc.net> 1750531785 -0700	commit: Update index.html with full analytics, streaming Q&A, tags, walkthrough, and enhancements
+b6e3a8bded93ea9f7b49f8bb1162d9c4c6ff3659 100daa44be5086e802727caca42d8ff36d5463d9 gridllc <patrick@gridllc.net> 1750533089 -0700	commit: Refactor: split analytics and feedback routes into separate files
+100daa44be5086e802727caca42d8ff36d5463d9 7f8b85e2ec1249330d6333d427f3edb113f04173 gridllc <patrick@gridllc.net> 1750535256 -0700	commit: Add frontend UI and JS for feedback submission and admin viewing
+7f8b85e2ec1249330d6333d427f3edb113f04173 bf4e9f9a6a06e6f7ecc1abde73bc46b1afa06d8e gridllc <patrick@gridllc.net> 1750554085 -0700	commit: Add quiz generation, segment notes, and transcript sharing endpoints
+bf4e9f9a6a06e6f7ecc1abde73bc46b1afa06d8e 7b52231769665a3f222073b387afad27aa2461ba gridllc <patrick@gridllc.net> 1750554188 -0700	commit: Update main and upload_processor with latest changes
+7b52231769665a3f222073b387afad27aa2461ba c6f3c7611603f9c64c1087fccd144b9a46f4d47a gridllc <patrick@gridllc.net> 1750560452 -0700	commit: 🔧 Updated main and upload logic + new interactive transcript features
+c6f3c7611603f9c64c1087fccd144b9a46f4d47a 293d7b7feace95f72ae6e79fa0c96aebc7c5ad5d gridllc <patrick@gridllc.net> 1750562308 -0700	commit: Complete: Reintegration of all frontend features with full JS and UI panels
+293d7b7feace95f72ae6e79fa0c96aebc7c5ad5d 844e2ceb2be524a1a49582f799d12baf41639e59 gridllc <patrick@gridllc.net> 1750619315 -0700	commit: Major update: upload, transcription, quiz, frontend JS sync
+844e2ceb2be524a1a49582f799d12baf41639e59 8ec8b67fb815d25790c2324517567ff740326646 gridllc <patrick@gridllc.net> 1750623039 -0700	commit: updated auth in Main,py and auth.py
+8ec8b67fb815d25790c2324517567ff740326646 fb33a3e2930dae433a9346745096881c6ba04d2d gridllc <patrick@gridllc.net> 1750634408 -0700	commit: Fix: add create_tables to database.py
+fb33a3e2930dae433a9346745096881c6ba04d2d 94dcf6cfc3b4437ff784e3d21d6b1a6cfcbf164b gridllc <patrick@gridllc.net> 1750636462 -0700	commit: Fix: added missing FastAPI import
+94dcf6cfc3b4437ff784e3d21d6b1a6cfcbf164b 195e1082a65ebb317f422728b49feb1e27e3884c gridllc <patrick@gridllc.net> 1750638482 -0700	commit: Fix uploads mount order
+195e1082a65ebb317f422728b49feb1e27e3884c 33fe0bbd39fd4a067e5751d7c2e85838e7ab3775 gridllc <patrick@gridllc.net> 1750640413 -0700	commit: Fix: ensure transcripts dir exists before mount
+33fe0bbd39fd4a067e5751d7c2e85838e7ab3775 a64d191dc61a89134164ca637e3f7055bf458532 gridllc <patrick@gridllc.net> 1750644880 -0700	commit: Add missing File import
+a64d191dc61a89134164ca637e3f7055bf458532 c3d78abdc855adb4956bd8497a5818800d30dc8f gridllc <patrick@gridllc.net> 1750648300 -0700	commit: Fix: add APIRouter import
+c3d78abdc855adb4956bd8497a5818800d30dc8f 96c5733263a21b78936b2cd0fbbf219eed2a089d gridllc <patrick@gridllc.net> 1750695792 -0700	commit: Added favicon assets and updated index.html for full favicon support
+96c5733263a21b78936b2cd0fbbf219eed2a089d b7e0df2f4d8796ef93292cb8b1d7e279c97829fb gridllc <patrick@gridllc.net> 1750697065 -0700	commit: Initial push for Render
+b7e0df2f4d8796ef93292cb8b1d7e279c97829fb 5a5ed9b7c5975534392bd2ba1c5348f4e9124961 gridllc <patrick@gridllc.net> 1750698938 -0700	commit: Serve HTML frontend at root
+5a5ed9b7c5975534392bd2ba1c5348f4e9124961 c95e32630bd280e5b5b5d092c61a42d9d900ed93 gridllc <patrick@gridllc.net> 1750701331 -0700	commit: Fix JS reference, add android icons, add /api/history route
+c95e32630bd280e5b5b5d092c61a42d9d900ed93 c7ff25c85b65a3ffabcfa2159bc4723612b095d8 gridllc <patrick@gridllc.net> 1750704430 -0700	commit: Fix: Added missing typing imports for Dict, List, Any
+c7ff25c85b65a3ffabcfa2159bc4723612b095d8 335d6690ab64437aab0ff6273c3fd6a6ea11d8b9 gridllc <patrick@gridllc.net> 1750704471 -0700	commit: Fix: Added missing typing imports for Dict, List, Any
+335d6690ab64437aab0ff6273c3fd6a6ea11d8b9 288cad7d5108abe13c29da917ff717edb77623d0 gridllc <patrick@gridllc.net> 1750706132 -0700	commit: Fix: Marked get_transcript_list async and added /api/history alias for frontend
+288cad7d5108abe13c29da917ff717edb77623d0 8bf1fbb3b9a0884fac2e2f4e37c468f226df9af1 gridllc <patrick@gridllc.net> 1750711683 -0700	commit: Fix: Updated upload button, switched to /api/transcripts, corrected Toastify background
+8bf1fbb3b9a0884fac2e2f4e37c468f226df9af1 b68c8ac54cdc4fbad471529d458629a415dc01cd gridllc <patrick@gridllc.net> 1750714639 -0700	commit: Refactor: Removed APIRouter and registered all routes directly on FastAPI app
+b68c8ac54cdc4fbad471529d458629a415dc01cd da5f71d53a70922c47dd58337c2fb2e5426c95e9 gridllc <patrick@gridllc.net> 1750716996 -0700	commit: Fix: Restore login controls, handle expired tokens, define toggleProfile
+da5f71d53a70922c47dd58337c2fb2e5426c95e9 1665e9d7dbc31ba19598c27754016fd3df46ad8e gridllc <patrick@gridllc.net> 1750720938 -0700	commit: Update index.html and requirements.txt for login fixes and deployment
+1665e9d7dbc31ba19598c27754016fd3df46ad8e d69e62dbfe2c02a3acb4de7995e5746f8d474945 gridllc <patrick@gridllc.net> 1750724728 -0700	commit: Fix login, add resetPassword function and route
+d69e62dbfe2c02a3acb4de7995e5746f8d474945 1ed95d52e62b03a43253f9ee9963b204c9dc0975 gridllc <patrick@gridllc.net> 1750731713 -0700	commit: Add secure login, token refresh, and front-end auto retry logic
+1ed95d52e62b03a43253f9ee9963b204c9dc0975 134abf28e6e3cc5583afea9e327e8d483beeedb2 gridllc <patrick@gridllc.net> 1750733889 -0700	commit: Refactor auth: added cookie-based refresh token support and login improvements
+134abf28e6e3cc5583afea9e327e8d483beeedb2 26e4678e0937620e0c1fd0efb88e448a91d3d07e gridllc <patrick@gridllc.net> 1750734582 -0700	commit: Implement secure login + refresh token flow, fix cookie auth, finalize frontend integration
+26e4678e0937620e0c1fd0efb88e448a91d3d07e 2a77b6290a9899b5fa8cacf2acf495512b1216e0 gridllc <patrick@gridllc.net> 1750735653 -0700	commit: Fix login function indentation
+2a77b6290a9899b5fa8cacf2acf495512b1216e0 bee151ee37ed71073419a9b61be060675f663f8c gridllc <patrick@gridllc.net> 1750736687 -0700	commit: Refactor auth.py: add secure login, token refresh, cookie handling
+bee151ee37ed71073419a9b61be060675f663f8c f1572db91a7c0b3d07e30fb751c35fc955b61b9d gridllc <patrick@gridllc.net> 1750737763 -0700	commit: Finalize auth setup, token refresh, and config updates
+f1572db91a7c0b3d07e30fb751c35fc955b61b9d e8687efdc2f2d785aeaf94102eaf9877a3c7b687 gridllc <patrick@gridllc.net> 1750773482 -0700	commit: Add schemas.py and fix LoginRequest import in auth.py
+e8687efdc2f2d785aeaf94102eaf9877a3c7b687 bd7cbdf21b23c60bf508e58255c807550203d7aa gridllc <patrick@gridllc.net> 1750774811 -0700	commit: Fix login route argument order and ensure schemas.py is included
+bd7cbdf21b23c60bf508e58255c807550203d7aa 13c6bfc7433daa77a4562fce93d7c83c4dfe4841 gridllc <patrick@gridllc.net> 1750776194 -0700	commit: Fix import error: remove register_user from auth_routes.py
+13c6bfc7433daa77a4562fce93d7c83c4dfe4841 d4e5e9a4d84e2a7b572d5bbfa764788340124ef0 gridllc <patrick@gridllc.net> 1750783402 -0700	commit: Refactor email + auth system: unified environment config, improved token refresh/login flow, reconciled frontend auth handlers, CORS update
+d4e5e9a4d84e2a7b572d5bbfa764788340124ef0 1bdeb44ddd049a7ce528cbb0024d1d8acbec7d4c gridllc <patrick@gridllc.net> 1750786585 -0700	commit: Fix: add jwt_secret_key to config, finalize email + token refresh integration, synced static + backend
+1bdeb44ddd049a7ce528cbb0024d1d8acbec7d4c ccd94fad1f4cf330ad71b6195fea7cb5f56abbf3 gridllc <patrick@gridllc.net> 1750787341 -0700	commit: Fix: missing Optional import for refresh_token route
+ccd94fad1f4cf330ad71b6195fea7cb5f56abbf3 aa092d934a2c37d0c0597f9716c81d78f99bd13d gridllc <patrick@gridllc.net> 1750789812 -0700	commit: Clean up login UI: remove duplicate buttons, add inline Register link
+aa092d934a2c37d0c0597f9716c81d78f99bd13d 1e9272e74095279232cf3d7b7cd05835eca0fd46 gridllc <patrick@gridllc.net> 1750791210 -0700	commit: Add user registration route and schema
+1e9272e74095279232cf3d7b7cd05835eca0fd46 47e033e096927846195cff86b92bff14aed07e5f gridllc <patrick@gridllc.net> 1750794863 -0700	commit: Add 'name' field to User model, create local SQLite tables for dev
+47e033e096927846195cff86b92bff14aed07e5f 1c1df36f6c443001cebf3cb5447d9e3cd64bb3b7 gridllc <patrick@gridllc.net> 1750797413 -0700	commit: Fix: RegisterRequest import, cleanup auth.py, token decode fix, schema validation added
+1c1df36f6c443001cebf3cb5447d9e3cd64bb3b7 76d0a1f7742d186d164d954a2af79a964ee0e227 gridllc <patrick@gridllc.net> 1750803328 -0700	commit: Fix: Register/login routing, schema imports, and Render port binding
+76d0a1f7742d186d164d954a2af79a964ee0e227 471db736b5ebb4bfe079a7b27e785b0ef5e4ec83 gridllc <patrick@gridllc.net> 1750863268 -0700	commit: Add name field to users table
+471db736b5ebb4bfe079a7b27e785b0ef5e4ec83 404c7901d053611715b3ee604b7c85a98f334af8 gridllc <patrick@gridllc.net> 1750864521 -0700	commit: Add /run-migration endpoint for Alembic
+404c7901d053611715b3ee604b7c85a98f334af8 b8ec46790c653d0f0f3a41f20712f424847471b1 gridllc <patrick@gridllc.net> 1750866075 -0700	commit: Add Alembic to requirements
+b8ec46790c653d0f0f3a41f20712f424847471b1 50d11e9552b47f4c799e7ba5fb30ee4a91c2185d gridllc <patrick@gridllc.net> 1750877016 -0700	commit: Add Alembic migration support and finalize DB config
+50d11e9552b47f4c799e7ba5fb30ee4a91c2185d db15728ed72da62882b6495f741162d3e1e49c11 gridllc <patrick@gridllc.net> 1750888899 -0700	commit: Add refresh token endpoint and logic
+db15728ed72da62882b6495f741162d3e1e49c11 28b718645fbe646fec07ffdfd4303bd18c7ab8a0 gridllc <patrick@gridllc.net> 1750895030 -0700	commit: refactor: move JS from index.html to static_main.js, migrate refresh-token to auth_routes.py
+28b718645fbe646fec07ffdfd4303bd18c7ab8a0 65d01c3fd34f1c2752bbc6cca3825efc77b19c0a gridllc <patrick@gridllc.net> 1750903762 -0700	commit: feat: add S3 support and store audio/transcript URLs in user_files
+65d01c3fd34f1c2752bbc6cca3825efc77b19c0a be0dbf444b0d0fa3a56fb22c0cf2017c7bf0c7cf gridllc <patrick@gridllc.net> 1750903821 -0700	commit: feat: add S3 support and store audio/transcript URLs in user_files
+be0dbf444b0d0fa3a56fb22c0cf2017c7bf0c7cf f16aa11129064ef153b957a101148f48e76a1271 gridllc <patrick@gridllc.net> 1750905081 -0700	commit: fix: include boto3==1.38.44 in requirements.txt
+f16aa11129064ef153b957a101148f48e76a1271 739ef32f7c5125fd23ceb572ad58abff90ff29a9 gridllc <patrick@gridllc.net> 1750906339 -0700	commit: fix: add S3 config to Settings
+739ef32f7c5125fd23ceb572ad58abff90ff29a9 e5717aa163cc77f56f39ce4164505833c6b9deb3 gridllc <patrick@gridllc.net> 1750907188 -0700	commit: fix: ensure Dict is imported for transcript route
+e5717aa163cc77f56f39ce4164505833c6b9deb3 d72a21dd5e89bfa3bef7cde294b7abbddcbe4cd9 gridllc <patrick@gridllc.net> 1750908860 -0700	commit: debug: log full exception stack for upload route
+d72a21dd5e89bfa3bef7cde294b7abbddcbe4cd9 50fc65db6ba6112529fc92af5181424f8081d516 gridllc <patrick@gridllc.net> 1750948801 -0700	commit: refactor: move /api/upload to transcription_routes and clean up model conflict for Alembic
+50fc65db6ba6112529fc92af5181424f8081d516 28a08434b92672ce8f20b772d50b80fdf93ef1ac gridllc <patrick@gridllc.net> 1750950611 -0700	commit: fix: remove ACL from S3 upload to support ObjectOwnership settings and public bucket policy
+28a08434b92672ce8f20b772d50b80fdf93ef1ac 96c03c8b99b1afd1d5eb16e2d0f46de4c45572b4 gridllc <patrick@gridllc.net> 1750961926 -0700	commit: fix: update filename routes with :path for compatibility, standardize segment .json handling with S3
+96c03c8b99b1afd1d5eb16e2d0f46de4c45572b4 da29c81297db1b5b6f626a5fe76143e2c928034e gridllc <patrick@gridllc.net> 1750969866 -0700	commit: style: relocate and restyle spinner for better upload UX
+da29c81297db1b5b6f626a5fe76143e2c928034e 537df7743dffe72981df56e1231fa583b37fb1f8 gridllc <patrick@gridllc.net> 1750970708 -0700	commit: fix: support nested filenames using :path for transcript and note routes
+537df7743dffe72981df56e1231fa583b37fb1f8 d00f6ada7ccd8ad7e932c1def8d641073d88674c gridllc <patrick@gridllc.net> 1750973687 -0700	commit: fix: correct S3 path formatting for transcript and segments retrieval
+d00f6ada7ccd8ad7e932c1def8d641073d88674c 27539a9cb8d4aef4cdc322a048e3ac5c8b5b1b5a gridllc <patrick@gridllc.net> 1750975474 -0700	commit: feat: switch transcript note retrieval to S3
+27539a9cb8d4aef4cdc322a048e3ac5c8b5b1b5a eff214eb3bf40ef7b604aa6c996ee2bf971415c5 gridllc <patrick@gridllc.net> 1750975682 -0700	commit: feat: save transcript notes to S3 instead of local JSON
+eff214eb3bf40ef7b604aa6c996ee2bf971415c5 37673c3d52e622357afda65e808ca42ed75e38db gridllc <patrick@gridllc.net> 1750979346 -0700	commit: fix: correct S3 path formatting for transcript and segments retrieval
+37673c3d52e622357afda65e808ca42ed75e38db 2c2da9b19e27b2e386e988cbe6fe9035f952c019 gridllc <patrick@gridllc.net> 1750980498 -0700	commit: refactor: clean up S3 paths and restore stable transcript/segment handling
+2c2da9b19e27b2e386e988cbe6fe9035f952c019 99ebc093be86d79206ef526c4c9bd7235785dd0d gridllc <patrick@gridllc.net> 1750981453 -0700	commit: refactor: clean up S3 paths and restore stable transcript/segment handling
+99ebc093be86d79206ef526c4c9bd7235785dd0d a9244551cf559834b0140bbc7a57921cf99bc1e1 gridllc <patrick@gridllc.net> 1750982312 -0700	commit: fix: add missing json import for segment saving
+a9244551cf559834b0140bbc7a57921cf99bc1e1 72562ab376e408bf90aa4930c21e4819f352bbcf gridllc <patrick@gridllc.net> 1750988858 -0700	commit: refactor: switch upload and transcription to in-memory S3 streaming
+72562ab376e408bf90aa4930c21e4819f352bbcf eec9c23fd25d378ee524322dfab60fbec88ac9d4 gridllc <patrick@gridllc.net> 1750991455 -0700	commit: chore: ensure utils.py included in repo for S3/Pinecone helpers
+eec9c23fd25d378ee524322dfab60fbec88ac9d4 ed2b9909798cefe6f1fcbe66bb48ad67fd1ed8f6 gridllc <patrick@gridllc.net> 1750993248 -0700	commit: fix: use user_id instead of email in transcript listing
+ed2b9909798cefe6f1fcbe66bb48ad67fd1ed8f6 13a1932ee2b22853a96221adc3c8f9011941809a gridllc <patrick@gridllc.net> 1750993944 -0700	commit: fix: correct indentation and return structure in get_transcript_list
+13a1932ee2b22853a96221adc3c8f9011941809a 85f7db4f02b3b3ed0d291354c61beec5e71fa154 gridllc <patrick@gridllc.net> 1751034743 -0700	commit: feat: add user_id to UserFile with relationship to User
+85f7db4f02b3b3ed0d291354c61beec5e71fa154 6c516a99c2f0a39e8eeda712272ece7c35a747d9 gridllc <patrick@gridllc.net> 1751036221 -0700	commit: add: from sqlalchemy.orm import relationship
+6c516a99c2f0a39e8eeda712272ece7c35a747d9 933f504e5c362d4346468fc32d92f45d41627ab8 gridllc <patrick@gridllc.net> 1751037188 -0700	commit: feat: add hashed_password column to users with default
+933f504e5c362d4346468fc32d92f45d41627ab8 5eb1ba64ee634c35ae3e46f62f372fa95e845707 gridllc <patrick@gridllc.net> 1751165895 -0700	commit: fix: consistent auth and db migrations, clean alembic
+5eb1ba64ee634c35ae3e46f62f372fa95e845707 be37c890709b82d6805906fd7c2218b8e697b6d3 gridllc <patrick@gridllc.net> 1751167800 -0700	commit: fix: restore UserFile model for transcript handling
+be37c890709b82d6805906fd7c2218b8e697b6d3 f8d4f2667ac21ad2e4550b681c96e9806327ff16 gridllc <patrick@gridllc.net> 1751167958 -0700	commit: fix: add UserFile model and migration
+f8d4f2667ac21ad2e4550b681c96e9806327ff16 ab1967867a8eaebe335a977896bb5eef87d0dce8 gridllc <patrick@gridllc.net> 1751170018 -0700	commit: fix: add user_id foreign key to UserFile
+ab1967867a8eaebe335a977896bb5eef87d0dce8 04f08862ca3f98b9a274d9451055cdcb8c87495b gridllc <patrick@gridllc.net> 1751222389 -0700	commit: chore: lock dependencies after venv rebuild
+04f08862ca3f98b9a274d9451055cdcb8c87495b 3f1b979828a10206261622ad69e99e767a85029f gridllc <patrick@gridllc.net> 1751223268 -0700	commit: fix: add safe handling for UnknownHashError in verify_password
+3f1b979828a10206261622ad69e99e767a85029f 034c249a5fee3cb564f58d0f7e5acd0555709892 gridllc <patrick@gridllc.net> 1751224331 -0700	commit: chore: update config and transcription routes, add hash test
+034c249a5fee3cb564f58d0f7e5acd0555709892 faac9fed4ac2a2ebc4d0c22686777010057d07e9 gridllc <patrick@gridllc.net> 1751227201 -0700	commit: fix: remove unsupported audioop-lts for Python 3.10 compatibility
+faac9fed4ac2a2ebc4d0c22686777010057d07e9 4b2be7bc4c8b37ff10d0a8bc31e4f09d367cf941 gridllc <patrick@gridllc.net> 1751228779 -0700	commit: chore: add runtime.txt for Python 3.11.9, update requirements
+4b2be7bc4c8b37ff10d0a8bc31e4f09d367cf941 2fd9d14153fb01b18ee57f3d2cbecf9310a35bcb gridllc <patrick@gridllc.net> 1751305451 -0700	commit: feat: add alembic migration and updates to main.py and hash testing
+2fd9d14153fb01b18ee57f3d2cbecf9310a35bcb fbd595a7833778e58898592e294505d4f7c8160c gridllc <patrick@gridllc.net> 1751306336 -0700	commit: chore: switch to Python 3.11 in Dockerfile
+fbd595a7833778e58898592e294505d4f7c8160c c6482c699c76f7e3206f20bfd700c1b7ec0d5f3c gridllc <patrick@gridllc.net> 1751307159 -0700	commit: fix: remove Windows-only packages for Render
+c6482c699c76f7e3206f20bfd700c1b7ec0d5f3c a300da854565c327d0d5f5783791e8b260044cf6 gridllc <patrick@gridllc.net> 1751307479 -0700	commit: chore: remove Windows-only packages
+a300da854565c327d0d5f5783791e8b260044cf6 76d5404198fd260f2572b6252433db27ad91103f gridllc <patrick@gridllc.net> 1751307836 -0700	commit: chore: remove Windows-only packages
+76d5404198fd260f2572b6252433db27ad91103f 865e2b4488d56124b403f23ed62bb48fa8459ad3 gridllc <patrick@gridllc.net> 1751310344 -0700	commit: feat: add password confirmation, requirements updates
+865e2b4488d56124b403f23ed62bb48fa8459ad3 1e3ceadf39f13cd6f937152ffe8ea24921921124 gridllc <patrick@gridllc.net> 1751310454 -0700	commit: feat: add password confirmation, requirements updates
+1e3ceadf39f13cd6f937152ffe8ea24921921124 6b7296c63ada2ea28fe3570eb6cb960b22e8b77d gridllc <patrick@gridllc.net> 1751316954 -0700	commit: feat: update register form, validation, and styling
+6b7296c63ada2ea28fe3570eb6cb960b22e8b77d 6ce60dffad9dc54be0008dc55dee190bba9343b1 gridllc <patrick@gridllc.net> 1751320055 -0700	commit: chore: organize and pin requirements.txt for consistent environment
+6ce60dffad9dc54be0008dc55dee190bba9343b1 0d4b80fd552c3f8aa1ef86a1a571f5258e968542 gridllc <patrick@gridllc.net> 1751321391 -0700	commit: refactor: remove redundant LoginRequest and RegisterRequest from auth_routes.py
+0d4b80fd552c3f8aa1ef86a1a571f5258e968542 e97805e5af8fc51a88bc32e76a0a1dfceeea0190 gridllc <patrick@gridllc.net> 1751328267 -0700	commit: fix: updates to email utils, models, JS, and transcription route
+e97805e5af8fc51a88bc32e76a0a1dfceeea0190 340176cc3eaeaf1e3ddb52f2684a3f04333f4cbd gridllc <patrick@gridllc.net> 1751330151 -0700	commit: feat: improve login endpoint and frontend error handling
+340176cc3eaeaf1e3ddb52f2684a3f04333f4cbd 6eb5e08fa18314a8e0ea97f4fd87da747cf57570 gridllc <patrick@gridllc.net> 1751334975 -0700	commit: fix: switched to hashed_password field and removed plain password column
+6eb5e08fa18314a8e0ea97f4fd87da747cf57570 d804dcf7215117a759a81801ae766239fd1c883a gridllc <patrick@gridllc.net> 1751337155 -0700	commit: fix: add Pinecone error handling and cleanup upload flow
+d804dcf7215117a759a81801ae766239fd1c883a 438457d71d56616b45ba34ff3037fa97cc457791 gridllc <patrick@gridllc.net> 1751338416 -0700	commit: fix: correct indentation for Pinecone upsert handling
+438457d71d56616b45ba34ff3037fa97cc457791 fe2f2a8c379ef4fcd3ecbcd6776efd8bdc759976 gridllc <patrick@gridllc.net> 1751339982 -0700	commit: fix: migrate upload_processor.py to modern Pinecone SDK
+fe2f2a8c379ef4fcd3ecbcd6776efd8bdc759976 960ecd171138b957623aabc0d99aed22bcfc86f7 gridllc <patrick@gridllc.net> 1751386626 -0700	commit: feat: improve auth UI, password toggle, centered forms
+960ecd171138b957623aabc0d99aed22bcfc86f7 9910b190dc99cc93b50e074cf7fc07831d636ef1 gridllc <patrick@gridllc.net> 1751388796 -0700	commit: fix: correct UserFile user_id reference and models cleanup
+9910b190dc99cc93b50e074cf7fc07831d636ef1 4da74768b4dc7a0bdc6e31f342c4710920a49c7e gridllc <patrick@gridllc.net> 1751391790 -0700	commit: fix: add audio_url and transcript_url to UserFile model
+4da74768b4dc7a0bdc6e31f342c4710920a49c7e 65460ee8b512b9838a53e417ed6c163b24d65e16 gridllc <patrick@gridllc.net> 1751394032 -0700	commit: fix: add audio_url and transcript_url columns to UserFile with matching model changes
+65460ee8b512b9838a53e417ed6c163b24d65e16 3ec1f62ea5d33aba448030fd25e6b3625efc9fb5 gridllc <patrick@gridllc.net> 1751398105 -0700	commit: feat: robust upload route with flush and UserFile recording
+3ec1f62ea5d33aba448030fd25e6b3625efc9fb5 bbb661773b4cdf44710c887640d4d3f7a8990081 gridllc <patrick@gridllc.net> 1751403013 -0700	commit: feat: robust upload route with flush and UserFile recording
+bbb661773b4cdf44710c887640d4d3f7a8990081 8dc204ea9bb8609296d4d82a60438da05a86026c gridllc <patrick@gridllc.net> 1751403797 -0700	commit: feat: robust upload route with flush and UserFile recording
+8dc204ea9bb8609296d4d82a60438da05a86026c b28016a193e6c2cc00b3220103be67b92029f1ac gridllc <patrick@gridllc.net> 1751405622 -0700	commit: fix: assign transcript array directly from API response
+b28016a193e6c2cc00b3220103be67b92029f1ac 05e611503805dc6c3f6e40825f50553eb370645f gridllc <patrick@gridllc.net> 1751406479 -0700	commit: chore: baseline save, confirmed working after bugfix
+05e611503805dc6c3f6e40825f50553eb370645f e4ba0295411b835a1affd293b647c6e5f21b12dc gridllc <patrick@gridllc.net> 1751408753 -0700	commit: feat: add role-based permissions and invite system for employee onboarding
+e4ba0295411b835a1affd293b647c6e5f21b12dc 136ff9c1d379feb8bb135f385bdf1cc0f0b15c36 gridllc <patrick@gridllc.net> 1751557593 -0700	commit: chore: redeploy after env updates
+136ff9c1d379feb8bb135f385bdf1cc0f0b15c36 603f1a7416329afc3dfe80401a36d914ece35c52 gridllc <patrick@gridllc.net> 1751558500 -0700	commit: fix: unify env loading for email/admin
+603f1a7416329afc3dfe80401a36d914ece35c52 29498376d5980a8ce65bf969f916923b8c7046f4 gridllc <patrick@gridllc.net> 1751565266 -0700	commit: fix: update SMTP app password and verify envs
+29498376d5980a8ce65bf969f916923b8c7046f4 1adbbac273ee8c1d5085786cf72ac7a0ffd6fc51 gridllc <patrick@gridllc.net> 1751568451 -0700	commit: fix: config password
+1adbbac273ee8c1d5085786cf72ac7a0ffd6fc51 eef2a1f254d2305ecab10235b75e5783420d8e43 gridllc <patrick@gridllc.net> 1751573000 -0700	commit: fix: config password
+eef2a1f254d2305ecab10235b75e5783420d8e43 39225db05f093d7f6eb3e249104e8334ee6f0c1a gridllc <patrick@gridllc.net> 1751575098 -0700	commit: debug: add env prints for SMARTAI_SMTP_PASS
+39225db05f093d7f6eb3e249104e8334ee6f0c1a 43354663f29138ac6e98d7c350685e52f652798a gridllc <patrick@gridllc.net> 1751575152 -0700	pull origin main: Merge made by the 'ort' strategy.
+43354663f29138ac6e98d7c350685e52f652798a ae048968e5ffde6b566fdaa2657420a924a10786 gridllc <patrick@gridllc.net> 1751578244 -0700	commit: fix: move Settings() to runtime initialization for environment injection
+ae048968e5ffde6b566fdaa2657420a924a10786 6f5c6434adbe7dd0fbd0092110693b96e3e49ccf gridllc <patrick@gridllc.net> 1751579645 -0700	commit: fix: update auth.py to instantiate Settings at runtime
+6f5c6434adbe7dd0fbd0092110693b96e3e49ccf 5624754f8516b084d9652a9a2cc187824b92ebef gridllc <patrick@gridllc.net> 1751586967 -0700	commit: fix: unify settings singleton and import from main
+5624754f8516b084d9652a9a2cc187824b92ebef 9429d97ac82e3f7cb7a2ac82edc1332b29c9fdef gridllc <patrick@gridllc.net> 1751591738 -0700	commit: refactor: apply consistent settings import from config
+9429d97ac82e3f7cb7a2ac82edc1332b29c9fdef 742c98cfd23a05d38008813464447d53b439b81f gridllc <patrick@gridllc.net> 1751594336 -0700	commit: fix: switch email_password to Field env loading, standardize config
+742c98cfd23a05d38008813464447d53b439b81f d3d2334579e48ab9bf315faaef2c4ba583cece16 gridllc <patrick@gridllc.net> 1751596774 -0700	commit: fix: confirm consistent config with Field for SMARTAI_SMTP_PASS
+d3d2334579e48ab9bf315faaef2c4ba583cece16 3afa4bf240fb2c72518bf6a65dd346903a7a900a gridllc <patrick@gridllc.net> 1751639464 -0700	commit: feat: add SMTP env variable diagnostic logging
+3afa4bf240fb2c72518bf6a65dd346903a7a900a 47038b059a929ff05252b3f4e1764a1725704195 gridllc <patrick@gridllc.net> 1751642563 -0700	commit: fix: adjust SMTP environment variable names and debug order

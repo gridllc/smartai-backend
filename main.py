@@ -58,15 +58,11 @@ app.add_middleware(
 )
 
 # ensure folders exist
-os.makedirs(settings.transcript_dir, exist_ok=True)
-os.makedirs("uploads", exist_ok=True)
 os.makedirs("segments", exist_ok=True)
 
 # then mount static files
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-app.mount("/transcripts", StaticFiles(directory="transcripts"),
-          name="transcripts")
+
 
 # register routers
 app.include_router(auth_router, prefix="/auth", tags=["auth"])

@@ -1,0 +1,12 @@
+0000000000000000000000000000000000000000 e4ba0295411b835a1affd293b647c6e5f21b12dc gridllc <patrick@gridllc.net> 1751414604 -0700	branch: Created from HEAD
+e4ba0295411b835a1affd293b647c6e5f21b12dc 594748649ad407831246463d1483fa086f2fb5e5 gridllc <patrick@gridllc.net> 1751420670 -0700	commit: refactor: remove redundant /api prefixes from tag routes
+594748649ad407831246463d1483fa086f2fb5e5 73618f558e82234dc7d146721c888fecc1799ab5 gridllc <patrick@gridllc.net> 1751420774 -0700	commit: refactor: clean up main.py routes, update models, sync requirements
+73618f558e82234dc7d146721c888fecc1799ab5 eec47ee3fdbb8f01b993d0dd8c7f9cd9e4163ab6 gridllc <patrick@gridllc.net> 1751423355 -0700	commit: chore: add migration for user role column
+eec47ee3fdbb8f01b993d0dd8c7f9cd9e4163ab6 041054cb53f4cef4677f9d6778601f41a4824a99 gridllc <patrick@gridllc.net> 1751470326 -0700	commit: chore: checkpoint before API client refactor and migrations
+041054cb53f4cef4677f9d6778601f41a4824a99 04f75e8b87d58e1e064a8d648336bca1b7a82d20 gridllc <patrick@gridllc.net> 1751480902 -0700	commit: feat: align auth routes, QA handler, and API client with new /me endpoint, improved token handling, and user ID filtering
+04f75e8b87d58e1e064a8d648336bca1b7a82d20 c4f5ec149c32a7867788e03230e1abd30deca7b5 gridllc <patrick@gridllc.net> 1751488848 -0700	commit: feat: update auth routes with limiter and refresh logic, cleanup Dockerfile
+c4f5ec149c32a7867788e03230e1abd30deca7b5 7792b4439966df4bdbc4f1dc25b2f8d65a2a0988 gridllc <patrick@gridllc.net> 1751488963 -0700	commit: chore: ignore removed static icons and temp suggestion files
+7792b4439966df4bdbc4f1dc25b2f8d65a2a0988 e6990b193d2b39bc748c4f01913ffd0647ed0f84 gridllc <patrick@gridllc.net> 1751500400 -0700	commit: fix: update delete route to use user_id, add logger, replace print with logger
+e6990b193d2b39bc748c4f01913ffd0647ed0f84 1c49f98682aa03529338b3c06489707ecc400bde gridllc <patrick@gridllc.net> 1751503084 -0700	commit: fix: update transcription delete route to use user_id, add logger, cleanup main
+1c49f98682aa03529338b3c06489707ecc400bde cce8696a123afdd932defc9a61e1306a8f8b2a86 gridllc <patrick@gridllc.net> 1751505216 -0700	commit: fix: add missing User import to qa_handler, adjust login routes with request param, cleanup utils
+cce8696a123afdd932defc9a61e1306a8f8b2a86 86364591dd663ccd7ebe6d6626523a04c496e1d6 gridllc <patrick@gridllc.net> 1751505355 -0700	commit: fix: add missing datetime and sqlite3 imports to utils.py
