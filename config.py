@@ -1,8 +1,8 @@
-import os
 from pydantic_settings import BaseSettings
 from pydantic import Field, validator
-from typing import List, Optional
+from typing import List, Union
 import json
+import os
 
 
 class Settings(BaseSettings):
@@ -21,11 +21,12 @@ class Settings(BaseSettings):
     # JWT
     jwt_secret_key: str = Field(..., env="JWT_SECRET_KEY")
 
-    # Email
+    # Email configuration (optional) - FIXED: Remove ... for optional fields
     email_host: str = Field(default="smtp.gmail.com", env="SMARTAI_SMTP_HOST")
     email_port: int = Field(default=587, env="SMARTAI_SMTP_PORT")
-    email_username: str = Field(..., env="SMARTAI_SMTP_USER")
-    email_password: Optional[str] = Field(None, env="SMARTAI_SMTP_PASS")
+    # FIXED: This was the problem
+    email_username: str = Field(default="", env="SMARTAI_SMTP_USER")
+    email_password: str = Field(default="", env="SMARTAI_SMTP_PASS")
 
     # Admin emails
     admin_emails: List[str] = Field(default_factory=list, env="ADMIN_EMAILS")
@@ -34,13 +35,22 @@ class Settings(BaseSettings):
     def parse_admin_emails(cls, v):
         if not v:
             return []
+
         if isinstance(v, str):
+            # Try to parse as JSON first
             try:
-                return json.loads(v) if isinstance(json.loads(v), list) else [v]
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
             except json.JSONDecodeError:
-                return [email.strip() for email in v.split(',') if email.strip()]
+                pass
+
+            # If JSON parsing fails, treat as comma-separated string
+            return [email.strip() for email in v.split(',') if email.strip()]
+
         if isinstance(v, list):
             return v
+
         return []
 
       # App
