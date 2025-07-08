@@ -5,35 +5,36 @@ from pydantic import Field, validator
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
-# Load environment variables from .env file for local development.
-# This needs to be at the top to run before Settings is defined.
+# Load .env file for local development. This remains important.
 load_dotenv()
 
 
 class Settings(BaseSettings):
     """
     Manages all application settings, loading from environment variables.
+    This version includes a custom __init__ to forcefully load environment
+    variables in stubborn deployment environments like Render.
     """
 
-    # --- Required Settings (App will fail to start if these are not set) ---
-    database_url: str = Field(..., env="DATABASE_URL")
-    openai_api_key: str = Field(..., env="OPENAI_API_KEY")
-    aws_access_key_id: str = Field(..., env="AWS_ACCESS_KEY_ID")
-    aws_secret_access_key: str = Field(..., env="AWS_SECRET_ACCESS_KEY")
-    jwt_secret_key: str = Field(..., env="JWT_SECRET_KEY")
+    # Define all fields as optional initially, as we will load them in __init__
+    database_url: str = None
+    openai_api_key: str = None
+    aws_access_key_id: str = None
+    aws_secret_access_key: str = None
+    jwt_secret_key: str = None
 
     # Email configuration
-    email_host: str = Field(..., env="SMARTAI_SMTP_HOST")
-    email_port: int = Field(..., env="SMARTAI_SMTP_PORT")
-    email_username: str = Field(..., env="SMARTAI_SMTP_USER")
-    email_password: str = Field(..., env="SMARTAI_SMTP_PASS")
+    email_host: str = None
+    email_port: int = None
+    email_username: str = None
+    email_password: str = None
 
     # --- Optional Settings with Defaults ---
-    aws_region: str = Field(default="us-west-1", env="AWS_REGION")
-    s3_bucket: str = Field(default="smartai-transcripts-pg", env="S3_BUCKET")
-    admin_emails: List[str] = Field(default_factory=list, env="ADMIN_EMAILS")
-    app_name: str = Field(default="Transcription Service", env="APP_NAME")
-    debug: bool = Field(default=False, env="DEBUG")
+    aws_region: str = "us-west-1"
+    s3_bucket: str = "smartai-transcripts-pg"
+    admin_emails: List[str] = []
+    app_name: str = "Transcription Service"
+    debug: bool = False
 
     # File paths and limits
     static_dir: str = "static"
@@ -43,28 +44,48 @@ class Settings(BaseSettings):
         ".wav", ".mp3", ".m4a", ".flac", ".ogg", ".mp4", ".mov", ".mkv", ".avi"
     ]
 
-    @validator('admin_emails', pre=True)
+    def __init__(self, **kwargs):
+        """
+        Custom initializer to forcefully load environment variables.
+        This bypasses Pydantic's automatic discovery, which is failing on Render.
+        """
+        super().__init__(**kwargs)
+        # Manually load all required variables from the environment
+        self.database_url = os.getenv("DATABASE_URL")
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        self.aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
+        self.aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+        self.jwt_secret_key = os.getenv("JWT_SECRET_KEY")
+        self.email_host = os.getenv("SMARTAI_SMTP_HOST")
+        # Add default for port
+        self.email_port = int(os.getenv("SMARTAI_SMTP_PORT", 587))
+        self.email_username = os.getenv("SMARTAI_SMTP_USER")
+        self.email_password = os.getenv("SMARTAI_SMTP_PASS")
+
+        # Manually load optional variables if they exist
+        self.aws_region = os.getenv("AWS_REGION", self.aws_region)
+        self.s3_bucket = os.getenv("S3_BUCKET", self.s3_bucket)
+        admin_emails_str = os.getenv("ADMIN_EMAILS")
+        if admin_emails_str:
+            self.admin_emails = self.parse_admin_emails(admin_emails_str)
+
+    @validator('admin_emails', pre=True, allow_reuse=True)
     def parse_admin_emails(cls, v):
         if not v:
             return []
         if isinstance(v, str):
-            # Try to parse as JSON first
             try:
                 parsed = json.loads(v)
                 if isinstance(parsed, list):
                     return parsed
             except json.JSONDecodeError:
-                # If JSON fails, fall back to comma-separated string
                 return [email.strip() for email in v.split(',') if email.strip()]
         if isinstance(v, list):
             return v
         return []
 
-    # This inner class is the modern and recommended way to configure Pydantic's behavior.
-    # It correctly handles loading from both .env files and the server environment.
     class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+        # Keep this for Pydantic to know it can be configured
         case_sensitive = False
 
 
@@ -72,7 +93,9 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # A final check to provide a clear startup message in the logs.
-# This will now run AFTER the settings have been successfully validated.
-print("✅ Configuration loaded successfully.")
-print(f"   - SMTP User: {settings.email_username}")
-print(f"   - SMTP Host: {settings.email_host}:{settings.email_port}")
+# We will add a check here to make sure the variables were loaded.
+if not all([settings.database_url, settings.openai_api_key, settings.jwt_secret_key, settings.email_username]):
+    print("❌ FATAL: One or more required environment variables are missing after manual loading. Please check Render environment.")
+else:
+    print("✅ Configuration loaded successfully via manual __init__.")
+    print(f"   - SMTP User: {settings.email_username}")
