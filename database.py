@@ -1,37 +1,56 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
-# 1. Import the centralized settings object. This is the single source of truth.
-from config import settings
+# DO NOT import config or settings at the top level of this file.
 
-# 2. Use the already validated database URL from the settings object.
-#    No need for os.getenv() or any custom functions here.
-SQLALCHEMY_DATABASE_URL = settings.database_url
-
-# 3. Create the engine directly with the guaranteed-to-be-correct URL.
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-
-# 4. Create the session maker.
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# 5. Create the Base for all models to inherit from.
+# 1. Define the Base first. This is crucial.
+#    All models will import this `Base` object.
 Base = declarative_base()
 
 
-# 6. Define the dependency to get a database session in your routes.
+# 2. Define the engine and session maker inside a function.
+#    This delays the execution until the environment is fully loaded.
+def get_engine():
+    """
+    Loads the DATABASE_URL and creates the SQLAlchemy engine.
+    This function is designed to be called only when needed,
+    ensuring the environment (especially from .env) is loaded.
+    """
+    # Use the centralized settings from config.py
+    from config import settings
+
+    database_url = settings.database_url
+    if not database_url:
+        raise ValueError(
+            "DATABASE_URL is not set or not loaded correctly from config.settings")
+
+    return create_engine(database_url)
+
+
+# 3. Create the engine and session using the function.
+engine = get_engine()
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+# 4. Define the dependency to get a database session.
 def get_db():
+    """
+    FastAPI dependency that provides a SQLAlchemy session.
+    """
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
 
-# 7. Define a function to create tables (often used for initial setup or testing).
 
-
+# 5. Define the function to create tables.
 def create_tables():
-    # We can import models here to ensure Base is defined first,
-    # though it's not strictly necessary with this cleaner structure.
-    # from models import User, UserFile # etc.
+    """
+    Creates all tables in the database that inherit from Base.
+    """
+    # Import models locally to prevent circular import issues.
+    from models import User, UserFile, ActivityLog, QAHistory, Invite
     Base.metadata.create_all(bind=engine)
