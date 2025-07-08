@@ -1,31 +1,35 @@
-import os
-import smtplib
-from email.message import EmailMessage
-from dotenv import load_dotenv
+from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
+from config import settings
+from pydantic import EmailStr
+from typing import List
 
-load_dotenv()
+# 1. Centralize the email configuration using the settings from config.py
+conf = ConnectionConfig(
+    MAIL_USERNAME=settings.email_username,
+    MAIL_PASSWORD=settings.email_password,
+    MAIL_FROM=settings.email_username,
+    MAIL_PORT=settings.email_port,
+    MAIL_SERVER=settings.email_host,
+    MAIL_STARTTLS=True,
+    MAIL_SSL_TLS=False,
+    USE_CREDENTIALS=True,
+    VALIDATE_CERTS=True
+)
 
-EMAIL_USER = os.getenv("EMAIL_USER")
-EMAIL_PASS = os.getenv("EMAIL_PASSWORD")
-SMTP_SERVER = os.getenv("SMTP_SERVER")
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+# 2. Create a single, reusable function to send emails
 
 
-def send_email_with_attachment(to_email, subject, body, file_path=None):
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = EMAIL_USER
-    msg["To"] = to_email
-    msg.set_content(body)
+async def send_email(recipients: List[EmailStr], subject: str, body: str):
+    """
+    Sends an HTML email to a list of recipients.
+    """
+    message = MessageSchema(
+        subject=subject,
+        recipients=recipients,
+        body=body,
+        subtype=MessageType.html
+    )
 
-    if file_path:
-        with open(file_path, "rb") as f:
-            file_data = f.read()
-            filename = os.path.basename(file_path)
-            msg.add_attachment(file_data, maintype="application",
-                               subtype="octet-stream", filename=filename)
-
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as smtp:
-        smtp.starttls()
-        smtp.login(EMAIL_USER, EMAIL_PASS)
-        smtp.send_message(msg)
+    fm = FastMail(conf)
+    await fm.send_message(message)
+    print(f"Email sent to {recipients} with subject: '{subject}'")

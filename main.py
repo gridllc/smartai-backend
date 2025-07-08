@@ -18,15 +18,15 @@ from typing import Dict, List, Any
 import aiofiles
 from openai import OpenAI
 from sqlalchemy.orm import Session
-from starlette.responses import FileResponse
+from starlette.responses import FileResponse, HTMLResponse
 from fastapi import (
     FastAPI, UploadFile, File, Depends,
-    HTTPException, Header, Request, Body
+    HTTPException, Header, Request, Body, Form
 )
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from alembic.config import Config
 from alembic import command
 
@@ -34,13 +34,19 @@ from alembic import command
 # Local app imports
 from config import settings
 from database import get_db, create_tables
-from auth import get_current_user
+from auth import (
+    get_current_user,
+    create_password_reset_token,
+    verify_password_reset_token,
+    get_password_hash
+)
+from email_utils import send_email
 from auth import router as auth_router
-# FIX: models contains UserFile which is used in this file
 from models import UserFile, User
 from qa_handler import router as qa_router
 from transcription_routes import router as transcription_router
 from upload_processor import transcribe_audio
+
 
 # initialize the app
 app = FastAPI()
@@ -57,8 +63,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ensure folders exist
+# ensure folders exist on startup
 os.makedirs("segments", exist_ok=True)
+os.makedirs(settings.transcript_dir, exist_ok=True)
+os.makedirs("uploads", exist_ok=True)
 
 # then mount static files
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
@@ -77,17 +85,6 @@ app.include_router(qa_router, prefix="/qa", tags=["qa"])
 async def startup_event():
     create_tables()
     logging.info("Database tables created if not existing.")
-
-    # --- SMTP CONFIG DEBUGGING ---
-    print("--- SMTP Config Loaded ---")
-    print("HOST:", os.environ.get("SMTP_HOST"))
-    print("USER:", os.environ.get("SMTP_USER"))
-    # don’t print actual pass
-    print("PASS loaded:", bool(os.environ.get("SMTP_PASS")))
-    print("PORT:", os.environ.get("SMTP_PORT"))
-    print("---------------------------")
-    print("💡 Render sees SMARTAI_SMTP_USER as:",
-          os.environ.get("SMARTAI_SMTP_USER"))
 
 # OpenAI client
 client = OpenAI(api_key=settings.openai_api_key)
@@ -121,7 +118,7 @@ async def get_transcript_list(
             "filename": f.filename,
             "file_size": f.file_size,
             "upload_timestamp": f.upload_timestamp,
-            "tag": f.tag or ""  # Ensure tag is always present
+            "tag": f.tag or ""
         } for f in files
     ]
 
@@ -136,8 +133,6 @@ def get_transcript(
     filename: str,
     current_user: User = Depends(get_current_user)
 ):
-    # FIX: Correctly construct paths. The filename from the frontend is the original,
-    # so we append '.txt' for the transcript and '.json' for segments.
     transcript_path = os.path.join(settings.transcript_dir, f"{filename}.txt")
     segments_path = os.path.join(settings.transcript_dir, f"{filename}.json")
 
@@ -161,7 +156,6 @@ def get_transcript(
 @app.post("/api/transcript/{filename:path}/segments")
 async def save_segments(filename: str, segments_data: dict, user=Depends(get_current_user)):
     try:
-        # FIX: Consistently use f"{filename}.json" for the segments file path
         segments_path = os.path.join(
             settings.transcript_dir, f"{filename}.json")
         with open(segments_path, "w", encoding="utf-8") as f:
@@ -174,7 +168,6 @@ async def save_segments(filename: str, segments_data: dict, user=Depends(get_cur
 
 @app.get("/api/share/{filename:path}")
 async def get_shared_transcript(filename: str) -> Dict[str, str]:
-    # FIX: Assuming shared transcript is also a .txt file
     safe_filename = os.path.basename(filename)
     path = os.path.join(settings.transcript_dir, f"{safe_filename}.txt")
 
@@ -318,16 +311,71 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": f"Server error: {str(exc)}"}
     )
 
+# -----------------------------------------------------------
+# NEW, UNIFIED PASSWORD RESET FLOW
+# -----------------------------------------------------------
 
-@app.post("/reset-password")
-def reset_password(data: dict = Body(...)):
-    email = data.get("email")
+
+class EmailSchema(BaseModel):
+    email: EmailStr
+
+
+@app.post("/request-password-reset")
+async def request_password_reset(body: EmailSchema, request: Request, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == body.email).first()
+    if not user:
+        # Don't reveal if a user exists for security reasons.
+        # Always return a success-like message.
+        return JSONResponse(status_code=200, content={"message": "If an account with that email exists, a password reset link has been sent."})
+
+    token = create_password_reset_token(email=user.email)
+    # This creates a full, clickable URL like https://yourapp.onrender.com/reset-password/the-token
+    reset_url = str(request.url_for('reset_password_form', token=token))
+
+    html_body = f"""
+    <p>Hi {user.name or 'there'},</p>
+    <p>You requested a password reset for your SmartAI Transcriber account. Please click the link below to set a new password:</p>
+    <p><a href="{reset_url}">{reset_url}</a></p>
+    <p>This link is valid for 15 minutes.</p>
+    <p>If you did not request this, please ignore this email and your password will remain unchanged.</p>
+    """
+
+    await send_email(
+        recipients=[user.email],
+        subject="Your SmartAI Password Reset Link",
+        body=html_body
+    )
+
+    return JSONResponse(status_code=200, content={"message": "If an account with that email exists, a password reset link has been sent."})
+
+
+@app.get("/reset-password/{token}", name="reset_password_form", response_class=HTMLResponse)
+async def reset_password_form(token: str):
+    # This route just serves the static HTML form we created.
+    # The token in the URL will be handled by the form's JavaScript.
+    return FileResponse("static/reset_password_form.html")
+
+
+class ResetPasswordPayload(BaseModel):
+    new_password: str
+
+
+@app.post("/reset-password/{token}")
+async def reset_password_handler(token: str, payload: ResetPasswordPayload, db: Session = Depends(get_db)):
+    email = verify_password_reset_token(token)
     if not email:
-        raise HTTPException(status_code=400, detail="Email required")
+        raise HTTPException(
+            status_code=400, detail="Invalid or expired token. Please request a new reset link.")
 
-    # You could simulate or implement sending the reset link here
-    print(f"Reset link sent to: {email}")
-    return {"message": "Reset instructions sent"}
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        # This case is unlikely if the token is valid, but good for security.
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    user.hashed_password = get_password_hash(payload.new_password)
+    db.commit()
+
+    return {"message": "Password has been reset successfully."}
 
 
 @app.post("/run-migrations")

@@ -23,6 +23,7 @@ router = APIRouter()
 SECRET_KEY = settings.jwt_secret_key
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
+PASSWORD_RESET_TOKEN_EXPIRE_MINUTES = 15
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
@@ -61,8 +62,29 @@ def decode_refresh_token(token: str):
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
+# NEW: Function to create a password reset token
+
+
+def create_password_reset_token(email: str) -> str:
+    expire = datetime.utcnow() + timedelta(minutes=PASSWORD_RESET_TOKEN_EXPIRE_MINUTES)
+    to_encode = {"exp": expire, "sub": email, "scope": "password_reset"}
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+# NEW: Function to verify the password reset token
+
+
+def verify_password_reset_token(token: str) -> Optional[str]:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("scope") != "password_reset":
+            return None
+        return payload.get("sub")  # Returns the user's email
+    except JWTError:
+        return None
 
 # ───────────── DB Auth Helpers ─────────────
+
+
 def authenticate_user(db: Session, email: str, password: str) -> User:
     user = db.query(User).filter(User.email == email).first()
     if not user or not verify_password(password, user.hashed_password):
