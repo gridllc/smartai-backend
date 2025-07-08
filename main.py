@@ -41,7 +41,8 @@ from auth import (
     get_password_hash
 )
 from email_utils import send_email
-from auth import router as auth_router
+# FIX: Import the router from `auth_routes.py` NOT `auth.py`
+from auth_routes import router as auth_router
 from models import UserFile, User
 from qa_handler import router as qa_router
 from transcription_routes import router as transcription_router
