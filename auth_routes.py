@@ -10,10 +10,10 @@ from auth import (
     decode_refresh_token, get_current_user, register_user
 )
 from database import get_db
-# FIX: Import the 'Invite' model to prevent a NameError
 from models import Invite
 
-router = APIRouter
+# FIX: Add parentheses () to correctly create an INSTANCE of the APIRouter.
+router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
 
