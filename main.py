@@ -54,6 +54,7 @@ if not settings.database_url:
     raise ValueError(
         "FATAL: DATABASE_URL is not set. Application cannot start.")
 
+
 # ===============================================
 # DATABASE SETUP - The Single Source of Truth
 # ===============================================
