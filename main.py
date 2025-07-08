@@ -18,6 +18,7 @@ from typing import Dict, List, Any
 import aiofiles
 from openai import OpenAI
 from sqlalchemy.orm import Session
+from sqlalchemy import create_engine
 from starlette.responses import FileResponse, HTMLResponse
 from fastapi import (
     FastAPI, UploadFile, File, Depends,
@@ -30,10 +31,10 @@ from pydantic import BaseModel, EmailStr
 from alembic.config import Config
 from alembic import command
 
-# ─────────────────────────────────────────────
+# ─────────────────────────────────────────────s
 # Local app imports
 from config import settings
-from database import get_db, create_tables
+from database import SessionLocal, Base, get_db
 from auth import (
     get_current_user,
     create_password_reset_token,
@@ -47,6 +48,20 @@ from models import UserFile, User
 from qa_handler import router as qa_router
 from transcription_routes import router as transcription_router
 from upload_processor import transcribe_audio
+
+if not settings.database_url:
+    raise ValueError(
+        "FATAL: DATABASE_URL is not set. Application cannot start.")
+
+engine = create_engine(settings.database_url)
+
+# Bind the engine to the SessionLocal class we imported from database.py
+SessionLocal.configure(bind=engine)
+
+
+def create_tables():
+    """A helper function to create DB tables."""
+    Base.metadata.create_all(bind=engine)
 
 
 # initialize the app
@@ -79,12 +94,12 @@ app.include_router(transcription_router,
                    prefix="/transcription", tags=["transcription"])
 app.include_router(qa_router, prefix="/qa", tags=["qa"])
 
-# initialize DB on startup
-
 
 @app.on_event("startup")
 async def startup_event():
+    print("Application startup: Creating database tables if they don't exist...")
     create_tables()
+    print("Database tables check complete.")
     logging.info("Database tables created if not existing.")
 
 # OpenAI client
