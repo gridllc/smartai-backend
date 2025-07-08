@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     Defines the structure of our application settings.
     We will create an instance of this manually below.
     """
+    # --- Required fields (will raise an error if not present) ---
     database_url: str
     openai_api_key: str
     aws_access_key_id: str
@@ -24,10 +25,15 @@ class Settings(BaseSettings):
     email_username: str
     email_password: str
 
-    # Optional settings with defaults
-    aws_region: str = "us-west-1"
-    s3_bucket: str = "smartai-transcripts-pg"
-    admin_emails: List[str] = []
+    # --- Optional settings with defaults ---
+    # FIX: Mark these fields as Optional in the type hint.
+    # This tells Pydantic that `None` is an acceptable initial value,
+    # before the default is applied.
+    aws_region: Optional[str] = "us-west-1"
+    s3_bucket: Optional[str] = "smartai-transcripts-pg"
+    admin_emails: Optional[List[str]] = []
+
+    # These have defaults and are less likely to be environment-specific
     app_name: str = "Transcription Service"
     debug: bool = False
     static_dir: str = "static"
@@ -49,8 +55,7 @@ class Settings(BaseSettings):
         return v
 
 # --- Manual Settings Loading ---
-# This approach is robust for deployment environments where automatic
-# detection can be tricky. We load from the environment first, then validate.
+# This approach is robust for deployment environments.
 
 
 try:
@@ -65,22 +70,29 @@ try:
         "email_port": os.getenv("SMARTAI_SMTP_PORT"),
         "email_username": os.getenv("SMARTAI_SMTP_USER"),
         "email_password": os.getenv("SMARTAI_SMTP_PASS"),
-        # Load optionals too, Pydantic will use defaults if these are None
+        # Load optionals too
         "aws_region": os.getenv("AWS_REGION"),
         "s3_bucket": os.getenv("S3_BUCKET"),
         "admin_emails": os.getenv("ADMIN_EMAILS"),
     }
 
+    # Filter out keys where the value is None, so Pydantic uses the defaults.
+    validated_data = {k: v for k, v in settings_data.items() if v is not None}
+
     # 2. Create and validate the settings instance.
-    settings = Settings(**settings_data)
+    settings = Settings(**validated_data)
 
     print("✅ Configuration loaded successfully.")
     print(f"   - SMTP User: {settings.email_username}")
+    print(f"   - S3 Bucket: {settings.s3_bucket}")
 
 except ValidationError as e:
     print("❌ FATAL: Configuration validation failed. Check your environment variables.")
-    # Print a more helpful error message
     for error in e.errors():
-        print(f"   - Field '{error['loc'][0]}': {error['msg']}")
-    # Exit cleanly if config fails, to prevent the app from running in a broken state.
+        # Provide a clearer error for missing required fields
+        if error['type'] == 'missing':
+            print(
+                f"   - REQUIRED field '{error['loc'][0]}' is not set in the environment.")
+        else:
+            print(f"   - Field '{error['loc'][0]}': {error['msg']}")
     raise SystemExit(e) from e
