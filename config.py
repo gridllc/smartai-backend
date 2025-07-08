@@ -3,6 +3,9 @@ from pydantic import Field, validator
 from typing import List, Union
 import json
 import os
+# NEW: Import and call load_dotenv() at the very top of the config file.
+from dotenv import load_dotenv
+load_dotenv()
 
 
 class Settings(BaseSettings):
@@ -25,8 +28,8 @@ class Settings(BaseSettings):
     email_host: str = Field(default="smtp.gmail.com", env="SMARTAI_SMTP_HOST")
     email_port: int = Field(default=587, env="SMARTAI_SMTP_PORT")
     # FIXED: This was the problem
-    email_username: str = Field(default="", env="SMARTAI_SMTP_USER")
-    email_password: str = Field(default="", env="SMARTAI_SMTP_PASS")
+    email_username: str = Field(..., env="SMARTAI_SMTP_USER")
+    email_password: str = Field(..., env="SMARTAI_SMTP_PASS")
 
     # Admin emails
     admin_emails: List[str] = Field(default_factory=list, env="ADMIN_EMAILS")
@@ -80,8 +83,5 @@ settings = Settings()
 # hard debug
 print("✅ DEBUG: SMARTAI_SMTP_PASS =", settings.email_password)
 
-if not settings.email_username:
-    print("❌ ERROR: SMARTAI_SMTP_USER is missing!")
-
-if not settings.email_password:
-    print("⚠️  WARNING: SMARTAI_SMTP_PASS is missing at runtime. Check your environment variables on Render!")
+if not settings.email_username or not settings.email_password:
+    print("❌ FATAL: SMTP credentials are missing! The app cannot send emails. Check your environment variables.")
