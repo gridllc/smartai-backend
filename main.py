@@ -34,7 +34,8 @@ from alembic import command
 # ─────────────────────────────────────────────s
 # Local app imports
 from config import settings
-from database import SessionLocal, Base, get_db
+# FIX: Only import Base and SessionLocal from the new, simple database.py
+from database import Base, SessionLocal
 from auth import (
     get_current_user,
     create_password_reset_token,
@@ -53,10 +54,24 @@ if not settings.database_url:
     raise ValueError(
         "FATAL: DATABASE_URL is not set. Application cannot start.")
 
+# ===============================================
+# DATABASE SETUP - The Single Source of Truth
+# ===============================================
 engine = create_engine(settings.database_url)
+SessionLocal.configure(bind=engine)
 
 # Bind the engine to the SessionLocal class we imported from database.py
 SessionLocal.configure(bind=engine)
+
+# FIX: The get_db dependency is now defined HERE, in main.py
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 def create_tables():
