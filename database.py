@@ -1,45 +1,25 @@
-import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
 
-# DO NOT import models or Base at the top of this file.
+# 1. Import the centralized settings object. This is the single source of truth.
+from config import settings
 
-# Create the SQLAlchemy engine
+# 2. Use the already validated database URL from the settings object.
+#    No need for os.getenv() or any custom functions here.
+SQLALCHEMY_DATABASE_URL = settings.database_url
 
+# 3. Create the engine directly with the guaranteed-to-be-correct URL.
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
-def get_engine():
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        from dotenv import load_dotenv
-        print(
-            "DATABASE_URL not found in env, loading from .env file for local Alembic run...")
-        load_dotenv()
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
-            raise ValueError(
-                "DATABASE_URL is not set. Please create a .env file for local development.")
-    return create_engine(database_url)
-
-
-# CORRECT: Assign the result of get_engine() to a global variable.
-engine = get_engine()
-
-# Create a configured "Session" class. This now works because 'engine' is defined.
+# 4. Create the session maker.
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# ***************************************************************
-# THIS IS THE SINGLE SOURCE OF TRUTH FOR THE DECLARATIVE BASE
-# All models will import this `Base` object.
+# 5. Create the Base for all models to inherit from.
 Base = declarative_base()
-# ***************************************************************
-
-# CORRECT PLACEMENT for model import.
-# This is done *after* Base is defined, breaking the circular import.
-# Now, when models.py is imported, it will import the `Base` object we just created.
-
-# Dependency for FastAPI routes
 
 
+# 6. Define the dependency to get a database session in your routes.
 def get_db():
     db = SessionLocal()
     try:
@@ -47,9 +27,11 @@ def get_db():
     finally:
         db.close()
 
+# 7. Define a function to create tables (often used for initial setup or testing).
+
 
 def create_tables():
-    # Import models here to avoid circular imports
-    import models
-    # This will now correctly create all tables that have inherited from Base.
+    # We can import models here to ensure Base is defined first,
+    # though it's not strictly necessary with this cleaner structure.
+    # from models import User, UserFile # etc.
     Base.metadata.create_all(bind=engine)
