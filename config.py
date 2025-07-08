@@ -60,6 +60,8 @@ class Settings(BaseSettings):
     # Local file paths
 
     static_dir: str = "static"
+    # FIX: Added the missing transcript_dir setting
+    transcript_dir: str = "transcripts"
 
     max_file_size: int = 100_000_000
     allowed_extensions: List[str] = [

@@ -35,12 +35,12 @@ from alembic import command
 from config import settings
 from database import get_db, create_tables
 from auth import get_current_user
-from auth_routes import router as auth_router
+from auth import router as auth_router
+# FIX: models contains UserFile which is used in this file
 from models import UserFile, User
 from qa_handler import router as qa_router
 from transcription_routes import router as transcription_router
 from upload_processor import transcribe_audio
-
 
 # initialize the app
 app = FastAPI()
@@ -108,23 +108,22 @@ async def serve_audio(filename: str):
     return FileResponse(filepath, media_type="audio/mpeg")
 
 
-@app.get("/api/transcripts")
+@app.get("/api/transcripts", response_model=List[Dict[str, Any]])
 async def get_transcript_list(
     user=Depends(get_current_user),
     db: Session = Depends(get_db)
-) -> Dict[str, List[Dict[str, Any]]]:
+):
     files = db.query(UserFile).filter(UserFile.email == user.email).order_by(
         UserFile.upload_timestamp.desc()
     ).all()
-    return {
-        "files": [
-            {
-                "filename": f.filename,
-                "file_size": f.file_size,
-                "upload_timestamp": f.upload_timestamp
-            } for f in files
-        ]
-    }
+    return [
+        {
+            "filename": f.filename,
+            "file_size": f.file_size,
+            "upload_timestamp": f.upload_timestamp,
+            "tag": f.tag or ""  # Ensure tag is always present
+        } for f in files
+    ]
 
 
 @app.get("/api/history")
@@ -137,8 +136,10 @@ def get_transcript(
     filename: str,
     current_user: User = Depends(get_current_user)
 ):
-    transcript_path = os.path.join(settings.transcript_dir, filename)
-    segments_path = transcript_path.replace(".txt", ".json")
+    # FIX: Correctly construct paths. The filename from the frontend is the original,
+    # so we append '.txt' for the transcript and '.json' for segments.
+    transcript_path = os.path.join(settings.transcript_dir, f"{filename}.txt")
+    segments_path = os.path.join(settings.transcript_dir, f"{filename}.json")
 
     if not os.path.exists(transcript_path):
         raise HTTPException(status_code=404, detail="Transcript not found.")
@@ -160,6 +161,7 @@ def get_transcript(
 @app.post("/api/transcript/{filename:path}/segments")
 async def save_segments(filename: str, segments_data: dict, user=Depends(get_current_user)):
     try:
+        # FIX: Consistently use f"{filename}.json" for the segments file path
         segments_path = os.path.join(
             settings.transcript_dir, f"{filename}.json")
         with open(segments_path, "w", encoding="utf-8") as f:
@@ -172,8 +174,9 @@ async def save_segments(filename: str, segments_data: dict, user=Depends(get_cur
 
 @app.get("/api/share/{filename:path}")
 async def get_shared_transcript(filename: str) -> Dict[str, str]:
+    # FIX: Assuming shared transcript is also a .txt file
     safe_filename = os.path.basename(filename)
-    path = os.path.join(settings.transcript_dir, safe_filename)
+    path = os.path.join(settings.transcript_dir, f"{safe_filename}.txt")
 
     if not os.path.exists(path) or not os.path.isfile(path):
         raise HTTPException(status_code=404, detail="Transcript not found")

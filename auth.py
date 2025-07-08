@@ -12,7 +12,7 @@ from passlib.exc import UnknownHashError
 from sqlalchemy.orm import Session
 from models import User
 from database import get_db
-from main import settings
+from config import settings
 
 
 load_dotenv()
