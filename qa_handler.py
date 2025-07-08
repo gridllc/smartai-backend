@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy.orm import Session
 from auth import get_current_user
-from database import get_db
+# This is the only line that changes.
+from dependencies import get_db
 from models import QAHistory
 import json
 from typing import Dict, Any
 import logging
 from fastapi.responses import JSONResponse
+
 
 router = APIRouter()
 
@@ -28,10 +30,14 @@ async def get_qa_history(
     for item in history_records:
         sources = []
         try:
-            sources = json.loads(
-                item.sources_used) if item.sources_used else []
-        except json.JSONDecodeError:
-            pass
+            # The 'sources_used' column is already JSON, no need to parse it again
+            # if the database driver handles it correctly. If not, this is a safe fallback.
+            if isinstance(item.sources_used, str):
+                sources = json.loads(item.sources_used)
+            elif item.sources_used:  # It's likely already a dict/list
+                sources = item.sources_used
+        except (json.JSONDecodeError, TypeError):
+            pass  # Keep sources as empty list if parsing fails
 
         history.append({
             "question": item.question,

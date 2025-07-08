@@ -11,12 +11,14 @@ from passlib.context import CryptContext
 from passlib.exc import UnknownHashError
 from sqlalchemy.orm import Session
 from models import User
-from database import get_db
+# This is the only line that changes.
+from dependencies import get_db
 from config import settings
 
 
 load_dotenv()
 
+# This router is not actively used but is harmless.
 router = APIRouter()
 
 # ───────────── Configs ─────────────
@@ -136,5 +138,3 @@ def get_current_user(
         return user
     except JWTError:
         raise HTTPException(status_code=403, detail="Invalid or expired token")
-
-    # router = APIRouter() is already defined above

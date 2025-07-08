@@ -1,59 +1,39 @@
 import os
-import json
-import aiofiles
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
-from zipfile import ZipFile
-import io
-import sqlite3
-from utils import sanitize_filename, is_admin_user, log_activity
+from sqlalchemy.orm import Session
+from typing import Dict
+
+# Local application imports
+from models import UserFile
+from dependencies import get_db
+# To potentially secure this route in the future
 from auth import get_current_user
-from config import settings
+
 
 router = APIRouter()
 
 
 @router.get("/api/share/{filename}")
-async def get_shared_transcript(filename: str):
-    """Get transcript content with security validation."""
-    safe_filename = sanitize_filename(filename)
-    path = os.path.join(settings.transcript_dir, safe_filename)
+async def get_shared_transcript(filename: str, db: Session = Depends(get_db)) -> Dict[str, str]:
+    """
+    Gets transcript content from the database for a shared link.
+    This is a public endpoint, so it doesn't require a logged-in user.
+    """
+    # Sanitize filename just in case, though it's less critical with DB queries.
+    safe_filename = os.path.basename(filename)
 
-    if not os.path.exists(path) or not os.path.isfile(path):
+    # Query the database for the file by its filename.
+    # This is much more secure and robust than reading from the filesystem.
+    file_record = db.query(UserFile).filter(
+        UserFile.filename == safe_filename).first()
+
+    if not file_record:
         raise HTTPException(status_code=404, detail="Transcript not found")
 
-    try:
-        async with aiofiles.open(path, "r", encoding="utf-8") as f:
-            content = await f.read()
-        return {"transcript": content}
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail="Failed to read transcript")
+    # The UserFile model now stores the transcript text directly.
+    # Return the transcript text, or an empty string if it's null.
+    return {"transcript": file_record.transcript_text or ""}
 
-
-@router.get("/api/download/all")
-async def download_all_transcripts(user=Depends(get_current_user)):
-    """Download all user transcripts as ZIP."""
-    memory_file = io.BytesIO()
-
-    with sqlite3.connect(settings.db_path) as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT filename FROM user_files WHERE email = ?",
-            (user.email,)
-        )
-        user_files = [row[0] for row in cursor.fetchall()]
-
-    with ZipFile(memory_file, 'w') as zipf:
-        for filename in user_files:
-            transcript_path = os.path.join(
-                settings.transcript_dir, filename + ".txt")
-            if os.path.exists(transcript_path):
-                zipf.write(transcript_path, arcname=f"{filename}.txt")
-
-    memory_file.seek(0)
-    headers = {
-        "Content-Disposition": f"attachment; filename={user.email}_transcripts.zip"}
-
-    log_activity(user.email, "download_all")
-    return StreamingResponse(memory_file, media_type="application/zip", headers=headers)
+# The "/api/download/all" route was also in your original share_routes.py,
+# but it logically belongs in transcription_routes.py, where we have already
+# corrected and placed it. So, we can remove it from this file to avoid duplicationBased on your file.

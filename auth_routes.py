@@ -9,7 +9,8 @@ from auth import (
     authenticate_user, create_access_token, create_refresh_token,
     decode_refresh_token, get_current_user, register_user
 )
-from database import get_db
+# FIX: Import get_db from main.py, NOT database.py
+from dependencies import get_db
 from models import Invite
 
 # FIX: Add parentheses () to correctly create an INSTANCE of the APIRouter.

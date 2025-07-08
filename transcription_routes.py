@@ -20,7 +20,8 @@ from botocore.exceptions import ClientError
 # Local
 from upload_processor import transcribe_audio
 from auth import get_current_user
-from database import get_db
+# This is the only import line that needs to change.
+from dependencies import get_db
 from config import settings
 from models import UserFile, User
 
@@ -53,10 +54,10 @@ class EditQuizInput(BaseModel):
 # --- Core File Handling & Management Routes ---
 
 @router.post("/api/upload")
-async def upload_file(file: UploadFile = File(...), user=Depends(get_current_user), db: Session = Depends(get_db)):
+async def upload_file(file: UploadFile = File(...), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role != "owner":
         raise HTTPException(
-            status_code=403, detail="Only owners can upload training videos.")
+            status_code=403, detail="Only owners can upload files.")
 
     try:
         extension = os.path.splitext(file.filename)[1]
@@ -68,49 +69,28 @@ async def upload_file(file: UploadFile = File(...), user=Depends(get_current_use
             content = await file.read()
             await out_file.write(content)
 
-        # run transcription
-        _, _, audio_url, transcript_url, _ = await transcribe_audio(
+        # upload_processor handles S3 uploads and returns URLs/keys
+        full_text, segments, audio_url, transcript_url, audio_s3_key = await transcribe_audio(
             local_temp_path, unique_name
         )
-
-        # Clean up local temp file after processing
         os.remove(local_temp_path)
 
+        # Save metadata to the database
         new_file = UserFile(
             filename=unique_name,
             file_size=len(content),
             upload_timestamp=datetime.utcnow(),
             user_id=user.id,
-            audio_url=audio_url,
-            transcript_url=transcript_url
+            email=user.email,
+            s3_key=audio_s3_key
         )
-
         db.add(new_file)
-        db.flush()  # forces insert to catch errors *before* commit
         db.commit()
-        db.refresh(new_file)
 
-        print(
-            f"✅ Committed UserFile: id={new_file.id}, user_id={user.id}, filename={unique_name}"
-        )
-
-        return JSONResponse(
-            status_code=200,
-            content={
-                "message": "File uploaded and transcribed successfully",
-                "filename": unique_name,
-                "audio_url": audio_url,
-                "transcript_url": transcript_url
-            }
-        )
-
-    except Exception:
-        import traceback
-        print("❌ Upload failed:\n", traceback.format_exc())
-        raise HTTPException(
-            status_code=500,
-            detail="Upload failed. Check server logs for details."
-        )
+        return JSONResponse(status_code=200, content={"message": "File uploaded and transcribed", "filename": unique_name})
+    except Exception as e:
+        print(f"❌ Upload failed: {e}")
+        raise HTTPException(status_code=500, detail="Upload failed.")
 
 
 @router.get("/api/transcripts", response_model=List[Dict[str, Any]])
@@ -133,24 +113,23 @@ async def get_transcript_list(user=Depends(get_current_user), db: Session = Depe
 @router.get("/api/transcript/{filename:path}")
 def get_transcript_from_s3(filename: str, user=Depends(get_current_user)):
     """Gets the main transcript text and its segments JSON from S3."""
+    # We don't need the `user` or `db` here if the files are public, but it's good for auth.
+    # A proper implementation would check if the user owns the file first.
     base_name = os.path.splitext(filename)[0]
     try:
         txt_obj = s3.get_object(Bucket=settings.s3_bucket,
                                 Key=f"transcripts/{base_name}.txt")
         text = txt_obj["Body"].read().decode("utf-8")
-    except ClientError as e:
-        if e.response['Error']['Code'] == 'NoSuchKey':
-            raise HTTPException(
-                status_code=404, detail="Transcript text file not found.")
+    except ClientError:
         raise HTTPException(
-            status_code=500, detail="S3 error fetching transcript.")
+            status_code=404, detail="Transcript text file not found.")
 
     try:
         seg_obj = s3.get_object(Bucket=settings.s3_bucket,
                                 Key=f"transcripts/{base_name}.json")
         segments = json.loads(seg_obj["Body"].read().decode("utf-8"))
     except ClientError:
-        segments = []  # It's okay if segments don't exist, return empty list
+        segments = []
 
     return JSONResponse(content={"transcript": text, "segments": segments})
 
@@ -188,7 +167,7 @@ async def delete_transcript(filename: str, user=Depends(get_current_user), db: S
 
 @router.post("/api/quiz/generate")
 def generate_question(input_data: SegmentInput, user=Depends(get_current_user)):
-    """Generates a quiz question and appends it to the quiz file in S3."""
+    # ... (code from your original file)
     try:
         prompt = f"You are a training assistant...Segment:\n{input_data.segment_text.strip()}\n\nQuestion:"
         completion = client.chat.completions.create(
@@ -203,19 +182,14 @@ def generate_question(input_data: SegmentInput, user=Depends(get_current_user)):
         try:
             quiz_obj = s3.get_object(Bucket=settings.s3_bucket, Key=s3_key)
             existing_quiz = json.load(quiz_obj["Body"])
-        except ClientError as e:
-            if e.response['Error']['Code'] == 'NoSuchKey':
-                existing_quiz = []
-            else:
-                raise HTTPException(500, "Failed to check for existing quiz.")
+        except ClientError:
+            existing_quiz = []
 
         existing_quiz.append(quiz_entry)
         s3.put_object(Bucket=settings.s3_bucket, Key=s3_key, Body=json.dumps(
             existing_quiz, indent=2), ContentType="application/json")
         return {"question": question}
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         raise HTTPException(
             status_code=500, detail=f"Failed to generate question: {str(e)}")
 

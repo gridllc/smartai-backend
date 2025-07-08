@@ -73,3 +73,14 @@ class Invite(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     owner = relationship("User", back_populates="invites_created")
+
+
+class Feedback(Base):
+    __tablename__ = "feedback"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    # Optional: Link feedback to a user
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)

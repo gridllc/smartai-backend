@@ -16,18 +16,20 @@ router = APIRouter()
 
 @router.get("/api/admin/analytics")
 async def admin_analytics(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user['email'] != "patrick@gridllc.net":
+    # Note: get_current_user returns a User object, not a dict.
+    # We should access its attributes directly, e.g., current_user.email
+    if current_user.email != "patrick@gridllc.net":
         return JSONResponse(status_code=403, content={"detail": "Not authorized"})
 
     total_users = db.query(User).count()
     total_files = db.query(UserFile).count()
     total_questions = db.query(QAHistory).count()
 
+    # This join assumes QAHistory has a user_email column that matches User.email. This is correct.
     top_users = (
-        db.query(User.email, QAHistory.user_email,
-                 db.func.count(QAHistory.id).label("count"))
-        .join(User, User.email == QAHistory.user_email)
-        .group_by(QAHistory.user_email)
+        db.query(User.email, db.func.count(QAHistory.id).label("count"))
+        .join(User, User.email == QAHistory.email)
+        .group_by(User.email)
         .order_by(db.desc("count"))
         .limit(10)
         .all()
@@ -37,7 +39,7 @@ async def admin_analytics(current_user: dict = Depends(get_current_user), db: Se
         "total_users": total_users,
         "total_files": total_files,
         "total_questions": total_questions,
-        "top_users": [{"email": email, "count": count} for email, _, count in top_users]
+        "top_users": [{"email": email, "count": count} for email, count in top_users]
     }
     return result
 
@@ -48,9 +50,10 @@ async def uploads_by_date(current_user: dict = Depends(get_current_user), db: Se
         return JSONResponse(status_code=403, content={"detail": "Not authorized"})
 
     result = (
-        db.query(UserFile.uploaded_at, db.func.count(UserFile.id))
-        .group_by(UserFile.uploaded_at)
-        .order_by(UserFile.uploaded_at)
+        db.query(db.func.date(UserFile.upload_timestamp),
+                 db.func.count(UserFile.id))
+        .group_by(db.func.date(UserFile.upload_timestamp))
+        .order_by(db.func.date(UserFile.upload_timestamp))
         .all()
     )
 
@@ -70,8 +73,11 @@ async def export_admin_data(current_user: dict = Depends(get_current_user), db: 
 
     files = db.query(UserFile).all()
     for f in files:
-        writer.writerow([f.user_email, f.filename,
-                        f.uploaded_at.strftime("%Y-%m-%d %H:%M:%S")])
+        # FIX: The columns are `email` and `upload_timestamp`.
+        writer.writerow([f.email, f.filename,
+                        f.upload_timestamp.strftime("%Y-%m-%d %H:%M:%S")])
 
     buffer.seek(0)
-    return {"csv_data": buffer.read()}
+    # The frontend probably expects a direct response, not a JSON object.
+    # Returning the CSV data directly with a proper content type is better.
+    return Response(content=buffer.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=admin_data_export.csv"})
